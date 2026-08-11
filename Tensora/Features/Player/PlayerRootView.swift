@@ -15,8 +15,8 @@ struct PlayerRootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Discover hides the bottom bar and draws `PlayerTopTabBar`
-            // instead, so the results sheet can't cover the tabs.
+            // Discover hides the bottom bar and floats `PlayerTabPicker` over
+            // the map instead, so the results sheet can't cover the tabs.
             DiscoverView(selectedTab: $selectedTab)
                 .tabItem { Label("Discover", systemImage: "map.fill") }
                 .tag(Tab.discover)
@@ -36,77 +36,45 @@ struct PlayerRootView: View {
     }
 }
 
-/// The player's tabs, drawn at the top of the screen.
+/// The player's tabs as a segmented picker — the same control the Orders tab
+/// uses for Active / Pending / Past.
 ///
 /// Discover keeps a results sheet up permanently, and a sheet is presented on
 /// the window — it covers the system tab bar at the bottom no matter what.
-/// Discover therefore hides the bottom bar and puts this in its place; the
-/// other tabs use the normal bottom bar.
-///
-/// Metrics and materials match the system tab bar (49pt tall, `.bar` blur,
-/// 10pt labels), so it floats over the map the same way the bottom bar floats
-/// over the other tabs' content.
-struct PlayerTopTabBar: View {
+/// Discover therefore hides the bottom bar and floats this over the map
+/// instead; the other tabs use the normal bottom bar.
+struct PlayerTabPicker: View {
 
-    /// Height of the bar itself, below the status bar — the system tab bar's
-    /// height in portrait. The Discover sheet's tallest detent is measured
-    /// against this so it stops just underneath.
-    static let barHeight: CGFloat = 49
+    /// Total height this takes below the status bar, padding included. The
+    /// Discover sheet's tallest detent is measured against it so the sheet
+    /// stops just underneath.
+    static let height: CGFloat = 48
 
     @Binding var selection: PlayerRootView.Tab
+    /// Shown alongside the Orders title — a segmented control has nowhere to
+    /// put the badge the bottom bar carries.
     var ordersBadge: Int = 0
 
     var body: some View {
-        HStack(spacing: 0) {
-            item(.discover, title: "Discover", icon: "map.fill")
-            item(.orders, title: "Orders", icon: "list.clipboard.fill", badge: ordersBadge)
-            item(.profile, title: "Profile", icon: "person.crop.circle.fill")
+        Picker("Tab", selection: $selection) {
+            Text("Discover").tag(PlayerRootView.Tab.discover)
+            Text(ordersBadge > 0 ? "Orders (\(ordersBadge))" : "Orders")
+                .tag(PlayerRootView.Tab.orders)
+            Text("Profile").tag(PlayerRootView.Tab.profile)
         }
-        .frame(height: Self.barHeight)
-        // `.bar` is the material the system tab bar uses, and the background
-        // reaches up through the status bar on its own.
-        .background(.bar)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: 0.5)
-        }
-    }
-
-    private func item(
-        _ tab: PlayerRootView.Tab,
-        title: String,
-        icon: String,
-        badge: Int = 0
-    ) -> some View {
-        Button {
-            selection = tab
-        } label: {
-            VStack(spacing: 3) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: icon)
-                        .font(.system(size: 21))
-                        .frame(width: 32, height: 24)
-                    if badge > 0 {
-                        Text(badge > 99 ? "99+" : "\(badge)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .frame(minWidth: 16, minHeight: 16)
-                            .background(Capsule().fill(Theme.danger))
-                            .offset(x: 8, y: -4)
-                    }
-                }
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .foregroundStyle(selection == tab ? Theme.accent : Theme.secondaryText)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(badge > 0 ? "\(title), \(badge) waiting" : title)
-        .accessibilityAddTraits(selection == tab ? [.isButton, .isSelected] : .isButton)
+        .pickerStyle(.segmented)
+        // The control's own track is translucent, so it needs something solid
+        // behind it to stay readable over map tiles.
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(.regularMaterial)
+                // On the shape rather than the picker, so the segment labels
+                // aren't drawn with a shadow of their own.
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+        )
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
+        .frame(height: Self.height)
     }
 }
 

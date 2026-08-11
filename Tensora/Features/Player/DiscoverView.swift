@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// The sheet is up the whole time this screen is on, and a sheet covers the
 /// system tab bar, so this is the one screen that hides the bottom bar and
-/// draws `PlayerTopTabBar` above the map instead.
+/// floats `PlayerTabPicker` over the map instead.
 struct DiscoverView: View {
 
     /// Drives the tab bar this screen draws at the top of itself, in place of
@@ -56,12 +56,12 @@ struct DiscoverView: View {
             map
                 .ignoresSafeArea(edges: .top)
 
-            // Outside the map's `ignoresSafeArea`, so the bar lands under the
-            // status bar and floats over the map on its own blur. Everything
-            // that floats over the map hangs off this stack, which keeps it
-            // clear of the bar without hardcoding a top inset.
+            // Outside the map's `ignoresSafeArea`, so this stack starts under
+            // the status bar. Everything that floats over the map hangs off
+            // it, which keeps it clear of the picker without hardcoding a top
+            // inset.
             VStack(spacing: Theme.Spacing.sm) {
-                PlayerTopTabBar(
+                PlayerTabPicker(
                     selection: $selectedTab,
                     ordersBadge: orders.awaitingPlayerApproval.count
                 )
@@ -307,11 +307,11 @@ struct DiscoverView: View {
 
 // MARK: - Supporting views
 
-/// Tallest detent for the results sheet: `.large` would slide up over the top
-/// tab bar, so stop the sheet just below it.
+/// Tallest detent for the results sheet: `.large` would slide up over the tab
+/// picker, so stop the sheet just below it.
 private struct BelowTopTabsDetent: CustomPresentationDetent {
     static func height(in context: Context) -> CGFloat? {
-        max(context.maxDetentValue - PlayerTopTabBar.barHeight, 0)
+        max(context.maxDetentValue - PlayerTabPicker.height, 0)
     }
 }
 
