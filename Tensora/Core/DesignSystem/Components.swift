@@ -117,6 +117,40 @@ struct SectionHeader: View {
 
 // MARK: - Small pieces
 
+/// A racquet for the sport, drawn in the same language as `BrandLogo` — the
+/// racquet itself rather than SF Symbols' figure playing the sport.
+///
+/// A badminton racquet is the narrower head on the longer shaft.
+struct RacquetGlyph: View {
+    let sport: RacquetSport
+    var height: CGFloat = 14
+
+    var body: some View {
+        let headHeight = height * (sport == .tennis ? 0.58 : 0.46)
+        let width = height * (sport == .tennis ? 0.52 : 0.36)
+        let lineWidth = max(1, height * 0.09)
+
+        ZStack(alignment: .top) {
+            // Head
+            Ellipse()
+                .stroke(lineWidth: lineWidth)
+                .frame(width: width, height: headHeight)
+
+            // Shaft
+            Capsule()
+                .frame(width: lineWidth, height: height - headHeight + lineWidth)
+                .offset(y: headHeight - lineWidth / 2)
+
+            // Butt of the grip
+            Capsule()
+                .frame(width: max(width * 0.5, lineWidth * 2), height: lineWidth)
+                .offset(y: height - lineWidth)
+        }
+        .frame(width: width, height: height)
+        .accessibilityHidden(true)
+    }
+}
+
 struct Badge: View {
     let text: String
     var tint: Color = Theme.accent

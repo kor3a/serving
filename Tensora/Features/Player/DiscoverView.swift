@@ -6,10 +6,19 @@ import SwiftUI
 /// Shops that already run on Tensora open their storefront; shops discovered
 /// from the map that haven't claimed an account show name, address and a call
 /// button instead.
+///
+/// The sheet is up the whole time this screen is on, and a sheet covers the
+/// system tab bar, so this is the one screen that hides the bottom bar and
+/// floats `PlayerTabPicker` over the map instead.
 struct DiscoverView: View {
+
+    /// Drives the tab bar this screen draws at the top of itself, in place of
+    /// the system one at the bottom.
+    @Binding var selectedTab: PlayerRootView.Tab
 
     @EnvironmentObject private var discover: DiscoverStore
     @EnvironmentObject private var location: LocationService
+    @EnvironmentObject private var orders: OrderStore
 
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
@@ -17,6 +26,10 @@ struct DiscoverView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.18, longitudeDelta: 0.18)
         )
     )
+    /// Lets the compass and user-location button be positioned by hand,
+    /// clear of the floating tab bar.
+    @Namespace private var mapScope
+
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var showSearchThisArea = false
     @State private var isSheetPresented = true
@@ -39,49 +52,85 @@ struct DiscoverView: View {
     }
 
     private var mapScreen: some View {
-        map
-            .ignoresSafeArea(edges: .top)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
-            .overlay(alignment: .top) { searchThisAreaButton }
-            .sheet(isPresented: $isSheetPresented) {
-                resultsSheet
-                    .presentationDetents([.height(140), .medium, .large], selection: $sheetDetent)
-                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                    .presentationDragIndicator(.visible)
-                    .interactiveDismissDisabled()
-            }
-            .task {
-                location.requestPermissionIfNeeded()
-                if discover.results.isEmpty {
-                    await discover.search(near: location.effectiveCoordinate)
+        ZStack(alignment: .top) {
+            map
+                .ignoresSafeArea(edges: .top)
+
+            // Outside the map's `ignoresSafeArea`, so this stack starts under
+            // the status bar. Everything that floats over the map hangs off
+            // it, which keeps it clear of the picker without hardcoding a top
+            // inset.
+            VStack(spacing: Theme.Spacing.sm) {
+                PlayerTabPicker(
+                    selection: $selectedTab,
+                    ordersBadge: orders.awaitingPlayerApproval.count
+                )
+
+                ZStack(alignment: .top) {
+                    mapControls
+                    searchThisAreaButton
                 }
             }
-            .onChange(of: location.coordinate) { _, newValue in
-                guard let newValue, !hasCenteredOnUser else { return }
-                hasCenteredOnUser = true
-                withAnimation {
-                    cameraPosition = .region(
-                        MKCoordinateRegion(
-                            center: newValue.clCoordinate,
-                            span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
-                        )
+        }
+        .mapScope(mapScope)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        // The bottom bar would sit under the results sheet, so this screen
+        // hides it and carries its own tabs at the top instead. It comes back
+        // on the storefront, which has no sheet over it.
+        .toolbar(.hidden, for: .tabBar)
+        .sheet(isPresented: $isSheetPresented) {
+            resultsSheet
+                .presentationDetents(
+                    [.height(140), .medium, .custom(BelowTopTabsDetent.self)],
+                    selection: $sheetDetent
+                )
+                // Enabled at every detent, otherwise the top tabs stop
+                // responding once the sheet is above `.medium`.
+                .presentationBackgroundInteraction(.enabled)
+                .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled()
+        }
+        .task {
+            location.requestPermissionIfNeeded()
+            if discover.results.isEmpty {
+                await discover.search(near: location.effectiveCoordinate)
+            }
+        }
+        .onChange(of: location.coordinate) { _, newValue in
+            guard let newValue, !hasCenteredOnUser else { return }
+            hasCenteredOnUser = true
+            withAnimation {
+                cameraPosition = .region(
+                    MKCoordinateRegion(
+                        center: newValue.clCoordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
                     )
-                }
-                Task { await discover.search(near: newValue) }
+                )
             }
-            .onChange(of: discover.selectedBusiness) { _, newValue in
-                // Hide the results sheet while a storefront is pushed, and
-                // bring it back when the player navigates away from it.
-                isSheetPresented = newValue == nil
-            }
-            .errorAlert(message: $discover.errorMessage)
+            Task { await discover.search(near: newValue) }
+        }
+        .onChange(of: discover.selectedBusiness) { _, _ in
+            // Hide the results sheet while a storefront is pushed, and
+            // bring it back when the player navigates away from it.
+            syncSheetPresentation()
+        }
+        .onChange(of: selectedTab) { _, _ in
+            // The sheet is presented on the window, so it would stay up over
+            // Orders and Profile if it were left presented on a tab switch.
+            syncSheetPresentation()
+        }
+        .errorAlert(message: $discover.errorMessage)
+    }
+
+    private func syncSheetPresentation() {
+        isSheetPresented = selectedTab == .discover && discover.selectedBusiness == nil
     }
 
     // MARK: - Map
 
     private var map: some View {
-        Map(position: $cameraPosition) {
+        Map(position: $cameraPosition, scope: mapScope) {
             UserAnnotation()
 
             ForEach(discover.filteredResults) { business in
@@ -94,15 +143,23 @@ struct DiscoverView: View {
                 .annotationTitles(.hidden)
             }
         }
-        .mapControls {
-            MapUserLocationButton()
-            MapCompass()
-        }
+        // The built-in controls sit in the top-trailing corner, which the
+        // floating tab bar now occupies, so they are placed by hand below it.
+        .mapControls { }
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
             let moved = discover.searchCenter.distanceMeters(to: Coordinate(context.region.center))
             showSearchThisArea = moved > 1_500
         }
+    }
+
+    private var mapControls: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            MapUserLocationButton(scope: mapScope)
+            MapCompass(scope: mapScope)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.trailing, Theme.Spacing.md)
     }
 
     @ViewBuilder
@@ -122,7 +179,8 @@ struct DiscoverView: View {
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .foregroundStyle(Theme.primaryText)
-            .padding(.top, 60)
+            // Sits directly under the floating tab bar in the same stack, so
+            // it needs no inset of its own.
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -131,7 +189,6 @@ struct DiscoverView: View {
 
     private var resultsSheet: some View {
         VStack(spacing: 0) {
-            sheetHeader
             searchBar
             filterChips
 
@@ -166,8 +223,15 @@ struct DiscoverView: View {
                             .listRowBackground(Theme.surface)
                         }
                     } header: {
-                        Text("\(discover.filteredResults.count) nearby · \(discover.claimedCount) on Tensora")
-                            .font(.caption)
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Text("\(discover.filteredResults.count) nearby · \(discover.claimedCount) on Tensora")
+                                .font(.caption)
+                            // Carries the refresh spinner the sheet header
+                            // used to hold.
+                            if discover.isLoading {
+                                ProgressView().controlSize(.mini)
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -175,21 +239,6 @@ struct DiscoverView: View {
             }
         }
         .background(Theme.background)
-    }
-
-    private var sheetHeader: some View {
-        HStack {
-            Text("Discover")
-                .font(.headline)
-                .foregroundStyle(Theme.primaryText)
-            Spacer()
-            if discover.isLoading {
-                ProgressView().controlSize(.small)
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, Theme.Spacing.sm)
-        .padding(.bottom, Theme.Spacing.sm)
     }
 
     private var searchBar: some View {
@@ -222,6 +271,8 @@ struct DiscoverView: View {
                 .fill(Theme.surfaceAlt)
         )
         .padding(.horizontal, Theme.Spacing.md)
+        // Clears the drag indicator, which the sheet header used to sit under.
+        .padding(.top, Theme.Spacing.md)
         .padding(.bottom, Theme.Spacing.sm)
     }
 
@@ -234,8 +285,8 @@ struct DiscoverView: View {
                 ForEach(RacquetSport.allCases) { sport in
                     FilterChip(
                         title: sport.label,
-                        systemImage: sport.iconName,
-                        isOn: discover.sportFilter == sport
+                        isOn: discover.sportFilter == sport,
+                        icon: { RacquetGlyph(sport: sport) }
                     ) {
                         discover.sportFilter = discover.sportFilter == sport ? nil : sport
                     }
@@ -248,6 +299,14 @@ struct DiscoverView: View {
 }
 
 // MARK: - Supporting views
+
+/// Tallest detent for the results sheet: `.large` would slide up over the tab
+/// picker, so stop the sheet just below it.
+private struct BelowTopTabsDetent: CustomPresentationDetent {
+    static func height(in context: Context) -> CGFloat? {
+        max(context.maxDetentValue - PlayerTabPicker.height, 0)
+    }
+}
 
 private struct MapPin: View {
     let business: StringerBusiness
@@ -348,18 +407,18 @@ struct BusinessRow: View {
     }
 }
 
-struct FilterChip: View {
+struct FilterChip<Icon: View>: View {
     let title: String
-    var systemImage: String?
     let isOn: Bool
+    /// The sport chips draw their racquet, so this takes a view rather than
+    /// an SF Symbol name.
+    @ViewBuilder var icon: Icon
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                if let systemImage {
-                    Image(systemName: systemImage).font(.caption)
-                }
+                icon
                 Text(title).font(.caption.weight(.semibold))
             }
             .foregroundStyle(isOn ? .white : Theme.primaryText)
@@ -373,8 +432,14 @@ struct FilterChip: View {
     }
 }
 
+extension FilterChip where Icon == EmptyView {
+    init(title: String, isOn: Bool, action: @escaping () -> Void) {
+        self.init(title: title, isOn: isOn, icon: { EmptyView() }, action: action)
+    }
+}
+
 #Preview {
-    DiscoverView()
+    DiscoverView(selectedTab: .constant(.discover))
         .environmentObject(DiscoverStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(LocationService())
         .environmentObject(OrderStore(backend: AppEnvironment.previewBackend()))
