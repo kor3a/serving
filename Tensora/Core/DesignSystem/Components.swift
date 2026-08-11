@@ -199,8 +199,10 @@ struct InlineBottomSheet<Header: View, Content: View>: View {
 }
 
 private extension CGFloat {
+    /// `Swift.` qualified because inside a `CGFloat` extension the bare names
+    /// resolve to `CGFloat.min` / `CGFloat.max`.
     func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
-        min(max(self, range.lowerBound), range.upperBound)
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
