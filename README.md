@@ -12,6 +12,7 @@ in-memory backend, so the whole flow works with no server.
 - Xcode 15.2 or newer
 - iOS 17.0+ simulator or device
 - No third-party dependencies (nothing to install, no SPM resolution step)
+- Python 3.10+ only if you're running the backend in `server/`
 
 ## Running it
 
@@ -109,13 +110,13 @@ pick-ups by day), Storefront (merchandise, service pricing, public profile).
 The Django + DRF service that the app talks to lives in `server/`. It runs on
 SQLite out of the box and on Supabase Postgres with one environment variable.
 
+Needs **Python 3.10+** (macOS ships 3.9, which can't install Django 5.2 —
+`brew install python@3.13`).
+
 ```sh
 cd server
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python manage.py migrate
-python manage.py seed_demo
+./setup.sh                 # venv, deps, .env, migrate, seed
+source .venv/bin/activate
 python manage.py runserver
 ```
 

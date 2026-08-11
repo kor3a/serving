@@ -8,6 +8,28 @@ Part 2 and have a fully working app on SQLite.
 
 ---
 
+## Part 0 — Python
+
+**You need Python 3.10 or newer.** macOS still ships 3.9 as `python3`, and
+Django 5.2 will not install on it. Check first:
+
+```sh
+python3 --version
+```
+
+If that prints 3.9.x (or pip only offers you `Django 4.2` and older), install a
+current Python:
+
+```sh
+brew install python@3.13
+```
+
+or use the installer from https://www.python.org/downloads/macos/. You don't
+need to replace the system Python — `setup.sh` below finds the newest one
+installed and uses that.
+
+---
+
 ## Part 1 — Run the server locally (10 minutes)
 
 No database setup needed yet; without `DATABASE_URL` the server uses a local
@@ -15,7 +37,23 @@ SQLite file.
 
 ```sh
 cd server
-python3 -m venv .venv
+./setup.sh
+```
+
+That picks a suitable Python, creates `.venv`, installs dependencies, copies
+`.env.example` to `.env`, migrates and seeds demo data. Then:
+
+```sh
+source .venv/bin/activate
+python manage.py runserver
+```
+
+<details>
+<summary>Doing it by hand instead</summary>
+
+```sh
+cd server
+python3.13 -m venv .venv           # an explicit 3.10+ interpreter
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
@@ -24,6 +62,11 @@ python manage.py migrate
 python manage.py seed_demo         # demo shops + two sign-in-able accounts
 python manage.py runserver
 ```
+
+</details>
+
+If you already made a `.venv` with the wrong Python, rebuild it with
+`./setup.sh --recreate`.
 
 Check it's alive:
 
@@ -299,7 +342,16 @@ other — which is otherwise invisible until the app throws at runtime.
 
 ## Troubleshooting
 
+**`Could not find a version that satisfies the requirement Django==5.2.x`**,
+with the offered list stopping around 4.2 — you're on Python 3.9 (the macOS
+system one). See Part 0, then `./setup.sh --recreate`.
+
 **`connection to server ... failed: SSL required`** — set `DB_SSL_REQUIRE=true`.
+
+**`Failed building wheel for psycopg` / `pg_config not found`** — pip fell back
+to a source build because no wheel matched your platform. `pip install
+"psycopg[binary]"` should use a prebuilt wheel; if it still fails, install
+libpq (`brew install libpq`) and retry.
 
 **`could not translate host name`** — you copied the URI without replacing
 `[YOUR-PASSWORD]`, or the password has an unescaped `@`. Percent-encode it.

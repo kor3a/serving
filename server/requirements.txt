@@ -1,15 +1,21 @@
-Django==5.1.4
-djangorestframework==3.15.2
-djangorestframework-simplejwt==5.3.1
-psycopg[binary]==3.2.3
-python-dotenv==1.0.1
-django-cors-headers==4.6.0
-dj-database-url==2.3.0
+# Requires Python 3.10 or newer (3.12+ recommended).
+#
+# macOS ships Python 3.9, which cannot install Django 5.x — if pip only offers
+# you Django 4.2 and older, that's the cause. Run ./setup.sh, which picks a
+# suitable interpreter for you, or see docs/SETUP.md.
+
+Django==5.2.17                        # LTS, supported until April 2028
+djangorestframework==3.18.0
+djangorestframework-simplejwt==5.5.1
+psycopg[binary]==3.3.4
+python-dotenv==1.2.2
+django-cors-headers==4.9.0
+dj-database-url==3.1.2
 
 # Payments. Optional in development — without STRIPE_SECRET_KEY the server
 # runs in fake-capture mode so the order flow still works end to end.
-stripe==11.4.0
+stripe==15.5.0
 
 # Apple / Google OAuth token verification
-pyjwt[crypto]==2.10.1
-requests==2.32.3
+pyjwt[crypto]==2.13.0
+requests==2.34.2
