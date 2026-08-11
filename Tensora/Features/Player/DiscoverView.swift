@@ -26,6 +26,10 @@ struct DiscoverView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.18, longitudeDelta: 0.18)
         )
     )
+    /// Lets the compass and user-location button be positioned by hand,
+    /// clear of the floating tab bar.
+    @Namespace private var mapScope
+
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var showSearchThisArea = false
     @State private var isSheetPresented = true
@@ -48,14 +52,27 @@ struct DiscoverView: View {
     }
 
     private var mapScreen: some View {
-        VStack(spacing: 0) {
-            PlayerTopTabBar(
-                selection: $selectedTab,
-                ordersBadge: orders.awaitingPlayerApproval.count
-            )
+        ZStack(alignment: .top) {
             map
-                .overlay(alignment: .top) { searchThisAreaButton }
+                .ignoresSafeArea(edges: .top)
+
+            // Outside the map's `ignoresSafeArea`, so the bar lands under the
+            // status bar and floats over the map on its own blur. Everything
+            // that floats over the map hangs off this stack, which keeps it
+            // clear of the bar without hardcoding a top inset.
+            VStack(spacing: Theme.Spacing.sm) {
+                PlayerTopTabBar(
+                    selection: $selectedTab,
+                    ordersBadge: orders.awaitingPlayerApproval.count
+                )
+
+                ZStack(alignment: .top) {
+                    mapControls
+                    searchThisAreaButton
+                }
+            }
         }
+        .mapScope(mapScope)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         // The bottom bar would sit under the results sheet, so this screen
@@ -113,7 +130,7 @@ struct DiscoverView: View {
     // MARK: - Map
 
     private var map: some View {
-        Map(position: $cameraPosition) {
+        Map(position: $cameraPosition, scope: mapScope) {
             UserAnnotation()
 
             ForEach(discover.filteredResults) { business in
@@ -126,15 +143,23 @@ struct DiscoverView: View {
                 .annotationTitles(.hidden)
             }
         }
-        .mapControls {
-            MapUserLocationButton()
-            MapCompass()
-        }
+        // The built-in controls sit in the top-trailing corner, which the
+        // floating tab bar now occupies, so they are placed by hand below it.
+        .mapControls { }
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
             let moved = discover.searchCenter.distanceMeters(to: Coordinate(context.region.center))
             showSearchThisArea = moved > 1_500
         }
+    }
+
+    private var mapControls: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            MapUserLocationButton(scope: mapScope)
+            MapCompass(scope: mapScope)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.trailing, Theme.Spacing.md)
     }
 
     @ViewBuilder
@@ -154,9 +179,8 @@ struct DiscoverView: View {
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .foregroundStyle(Theme.primaryText)
-            // Measured from the top of the map, which now starts under the
-            // tab bar rather than under the status bar.
-            .padding(.top, 12)
+            // Sits directly under the floating tab bar in the same stack, so
+            // it needs no inset of its own.
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

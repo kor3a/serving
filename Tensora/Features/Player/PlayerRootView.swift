@@ -42,11 +42,16 @@ struct PlayerRootView: View {
 /// the window — it covers the system tab bar at the bottom no matter what.
 /// Discover therefore hides the bottom bar and puts this in its place; the
 /// other tabs use the normal bottom bar.
+///
+/// Metrics and materials match the system tab bar (49pt tall, `.bar` blur,
+/// 10pt labels), so it floats over the map the same way the bottom bar floats
+/// over the other tabs' content.
 struct PlayerTopTabBar: View {
 
-    /// Height of the bar itself, below the status bar. The Discover sheet's
-    /// tallest detent is measured against this so it stops just underneath.
-    static let barHeight: CGFloat = 52
+    /// Height of the bar itself, below the status bar — the system tab bar's
+    /// height in portrait. The Discover sheet's tallest detent is measured
+    /// against this so it stops just underneath.
+    static let barHeight: CGFloat = 49
 
     @Binding var selection: PlayerRootView.Tab
     var ordersBadge: Int = 0
@@ -58,7 +63,9 @@ struct PlayerTopTabBar: View {
             item(.profile, title: "Profile", icon: "person.crop.circle.fill")
         }
         .frame(height: Self.barHeight)
-        .background(Theme.surface.ignoresSafeArea(edges: .top))
+        // `.bar` is the material the system tab bar uses, and the background
+        // reaches up through the status bar on its own.
+        .background(.bar)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Theme.separator)
@@ -75,11 +82,11 @@ struct PlayerTopTabBar: View {
         Button {
             selection = tab
         } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .frame(width: 32, height: 22)
+                        .font(.system(size: 21))
+                        .frame(width: 32, height: 24)
                     if badge > 0 {
                         Text(badge > 99 ? "99+" : "\(badge)")
                             .font(.system(size: 10, weight: .bold))
@@ -87,7 +94,7 @@ struct PlayerTopTabBar: View {
                             .padding(.horizontal, 4)
                             .frame(minWidth: 16, minHeight: 16)
                             .background(Capsule().fill(Theme.danger))
-                            .offset(x: 6, y: -6)
+                            .offset(x: 8, y: -4)
                     }
                 }
                 Text(title)
