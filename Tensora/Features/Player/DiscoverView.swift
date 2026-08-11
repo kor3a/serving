@@ -21,7 +21,7 @@ struct DiscoverView: View {
     @State private var showSearchThisArea = false
     @State private var isSheetPresented = true
     @State private var hasCenteredOnUser = false
-    @State private var sheetDetent: PresentationDetent = .medium
+    @State private var sheetDetent: InlineSheetDetent = .medium
 
     var body: some View {
         NavigationStack {
@@ -44,13 +44,10 @@ struct DiscoverView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: .top) { searchThisAreaButton }
-            .sheet(isPresented: $isSheetPresented) {
-                resultsSheet
-                    .presentationDetents([.height(140), .medium, .large], selection: $sheetDetent)
-                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                    .presentationDragIndicator(.visible)
-                    .interactiveDismissDisabled()
-            }
+            // An overlay rather than a `.sheet`: sheets are presented over the
+            // window and would hide the tab bar, which has to stay reachable
+            // while the results are up.
+            .overlay(alignment: .bottom) { resultsSheet }
             .task {
                 location.requestPermissionIfNeeded()
                 if discover.results.isEmpty {
@@ -73,7 +70,9 @@ struct DiscoverView: View {
             .onChange(of: discover.selectedBusiness) { _, newValue in
                 // Hide the results sheet while a storefront is pushed, and
                 // bring it back when the player navigates away from it.
-                isSheetPresented = newValue == nil
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isSheetPresented = newValue == nil
+                }
             }
             .errorAlert(message: $discover.errorMessage)
     }
@@ -129,9 +128,20 @@ struct DiscoverView: View {
 
     // MARK: - Results sheet
 
+    @ViewBuilder
     private var resultsSheet: some View {
+        if isSheetPresented {
+            InlineBottomSheet(detent: $sheetDetent, collapsedHeight: 140) {
+                sheetHeader
+            } content: {
+                resultsContent
+            }
+            .transition(.move(edge: .bottom))
+        }
+    }
+
+    private var resultsContent: some View {
         VStack(spacing: 0) {
-            sheetHeader
             searchBar
             filterChips
 
@@ -174,7 +184,6 @@ struct DiscoverView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(Theme.background)
     }
 
     private var sheetHeader: some View {
