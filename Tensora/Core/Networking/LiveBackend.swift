@@ -33,10 +33,20 @@ final class LiveBackend: Backend {
         let identityToken: String
         let fullName: String?
         let email: String?
+
+        enum CodingKeys: String, CodingKey {
+            case identityToken = "identity_token"
+            case fullName = "full_name"
+            case email
+        }
     }
 
     private struct GoogleRequest: Encodable {
         let idToken: String
+
+        enum CodingKeys: String, CodingKey {
+            case idToken = "id_token"
+        }
     }
 
     func signIn(email: String, password: String) async throws -> AuthSession {
@@ -157,10 +167,23 @@ final class LiveBackend: Backend {
     private struct AcknowledgeRequest: Encodable {
         let proposedPickUpDate: Date
         let note: String?
+
+        enum CodingKeys: String, CodingKey {
+            case proposedPickUpDate = "proposed_pick_up_date"
+            case note
+        }
     }
 
     private struct DeclineRequest: Encodable { let reason: String? }
-    private struct AcceptRequest: Encodable { let paymentMethod: PaymentMethod }
+
+    private struct AcceptRequest: Encodable {
+        let paymentMethod: PaymentMethod
+
+        enum CodingKeys: String, CodingKey {
+            case paymentMethod = "payment_method"
+        }
+    }
+
     private struct StatusRequest: Encodable { let status: OrderStatus }
 
     func acknowledgeOrder(orderID: UUID, proposedPickUp: Date, note: String?) async throws -> Order {

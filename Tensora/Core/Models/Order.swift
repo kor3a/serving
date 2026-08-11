@@ -143,8 +143,8 @@ extension StringSelection {
 
     private enum CodingKeys: String, CodingKey {
         case kind
-        case productID
-        case productName
+        case productID = "product_id"
+        case productName = "product_name"
         case price
         case description
     }
@@ -195,6 +195,16 @@ struct RacquetItem: Identifiable, Codable, Hashable {
     var crossTension: Double
     var notes: String
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case sport
+        case model
+        case stringSelection = "string_selection"
+        case mainTension = "main_tension"
+        case crossTension = "cross_tension"
+        case notes
+    }
+
     init(
         id: UUID = UUID(),
         sport: RacquetSport = .tennis,
@@ -230,6 +240,14 @@ struct PriceBreakdown: Codable, Hashable {
     var bringYourOwnStringFee: Decimal
     var serviceFee: Decimal
     var tax: Decimal
+
+    enum CodingKeys: String, CodingKey {
+        case stringsSubtotal = "strings_subtotal"
+        case laborSubtotal = "labor_subtotal"
+        case bringYourOwnStringFee = "bring_your_own_string_fee"
+        case serviceFee = "service_fee"
+        case tax
+    }
 
     var total: Decimal {
         stringsSubtotal + laborSubtotal + bringYourOwnStringFee + serviceFee + tax
@@ -276,6 +294,31 @@ struct Order: Identifiable, Codable, Hashable {
     var createdAt: Date
     var updatedAt: Date
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case orderNumber = "order_number"
+        case businessID = "business_id"
+        case businessName = "business_name"
+        case businessPhone = "business_phone"
+        case playerID = "player_id"
+        case playerName = "player_name"
+        case playerPhone = "player_phone"
+        case racquets
+        case serviceID = "service_id"
+        case serviceName = "service_name"
+        case dropOffDate = "drop_off_date"
+        case dropOffAddress = "drop_off_address"
+        case dropOffInstructions = "drop_off_instructions"
+        case proposedPickUpDate = "proposed_pick_up_date"
+        case confirmedPickUpDate = "confirmed_pick_up_date"
+        case businessNote = "business_note"
+        case pricing
+        case payment
+        case status
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
     var racquetCountText: String {
         racquets.count == 1 ? "1 racquet" : "\(racquets.count) racquets"
     }
@@ -303,6 +346,15 @@ struct OrderDraft: Codable, Hashable {
     var dropOffDate: Date
     var paymentMethod: PaymentMethod
     var noteForStringer: String
+
+    enum CodingKeys: String, CodingKey {
+        case businessID = "business_id"
+        case serviceID = "service_id"
+        case racquets
+        case dropOffDate = "drop_off_date"
+        case paymentMethod = "payment_method"
+        case noteForStringer = "note_for_stringer"
+    }
 
     init(
         businessID: UUID,

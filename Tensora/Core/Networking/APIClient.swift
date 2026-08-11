@@ -20,9 +20,13 @@ final class APIClient {
 
     // MARK: - Coders
 
+    /// Keys are declared explicitly on each model rather than derived with
+    /// `.convertFromSnakeCase`. Foundation's two key strategies are not
+    /// inverses of each other for acronyms — `businessID` encodes to
+    /// `business_id`, but `business_id` decodes to `businessId` — so every id
+    /// field would silently fail to decode.
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let raw = try container.decode(String.self)
@@ -34,7 +38,6 @@ final class APIClient {
 
     static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
             try container.encode(DateCoding.string(from: date))

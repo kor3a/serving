@@ -7,9 +7,15 @@ listed in `Endpoint.swift` under `Routes`.
 ## Conventions
 
 - Base URL includes the version prefix: `https://api.tensora.app/v1/`
-- JSON in, JSON out, **snake_case** keys (the client converts to/from camelCase)
-- Timestamps are ISO-8601 with a timezone: `2026-08-12T18:30:00.000Z`
-- Money is a decimal string or number with 2 decimal places, USD
+- JSON in, JSON out, **snake_case** keys. The Swift models declare their
+  `CodingKeys` explicitly, so the keys below are exactly what goes on the wire.
+- Timestamps are ISO-8601 with a timezone: `2026-08-12T18:30:00Z`. The client
+  parses with and without fractional seconds and always sends milliseconds.
+- Money is a JSON **number**, 2 decimal places, USD. Set
+  `COERCE_DECIMAL_TO_STRING: False` in DRF — the client decodes `Decimal` from
+  a number and will fail on `"24.00"`.
+- Enum values are the exact camelCase strings listed here (`awaitingBusiness`,
+  `syntheticGut`, `applePay`, …), not snake_case.
 - Auth: `Authorization: Bearer <access_token>`
 - Errors: `{"detail": "..."}` or DRF field errors `{"phone": ["..."]}`
 - `402` means the payment was declined; `401` triggers one refresh attempt then

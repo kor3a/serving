@@ -31,6 +31,9 @@ BUILD_VERSION = "1"
 # Files copied into the bundle rather than compiled.
 RESOURCE_SUFFIXES = {".xcassets", ".strings", ".stringsdict", ".json", ".plist"}
 SKIP_NAMES = {".DS_Store"}
+# Info.plist is consumed by the build settings, not copied as a resource —
+# adding it to the Resources phase produces a duplicate-output error.
+NOT_BUNDLE_RESOURCES = {"Info.plist"}
 
 
 def uid(*parts: str) -> str:
@@ -72,7 +75,7 @@ def walk(node: Node):
 
 
 def is_resource(path: Path) -> bool:
-    return path.suffix in RESOURCE_SUFFIXES
+    return path.suffix in RESOURCE_SUFFIXES and path.name not in NOT_BUNDLE_RESOURCES
 
 
 def file_type(path: Path) -> str:
@@ -155,28 +158,12 @@ def target_settings() -> dict[str, str]:
         "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": BUILD_VERSION,
-        "DEVELOPMENT_ASSET_PATHS": '""',
         "ENABLE_PREVIEWS": "YES",
-        "GENERATE_INFOPLIST_FILE": "YES",
-        "INFOPLIST_KEY_NSFaceIDUsageDescription": (
-            '"Tensora uses Face ID to unlock your account."'
-        ),
-        "INFOPLIST_KEY_NSLocationWhenInUseUsageDescription": (
-            '"Tensora uses your location to find racquet stringers near you."'
-        ),
-        "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
-        "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
-        "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",
-        "INFOPLIST_KEY_UIStatusBarStyle": "UIStatusBarStyleDefault",
-        "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad": (
-            '"UIInterfaceOrientationPortrait '
-            "UIInterfaceOrientationPortraitUpsideDown "
-            "UIInterfaceOrientationLandscapeLeft "
-            'UIInterfaceOrientationLandscapeRight"'
-        ),
-        "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone": (
-            '"UIInterfaceOrientationPortrait"'
-        ),
+        # A checked-in Info.plist rather than a generated one, because the
+        # App Transport Security exception for a local Django server is a
+        # dictionary and can't be expressed as an INFOPLIST_KEY_ setting.
+        "GENERATE_INFOPLIST_FILE": "NO",
+        "INFOPLIST_FILE": "Tensora/Resources/Info.plist",
         "LD_RUNPATH_SEARCH_PATHS": '"$(inherited) @executable_path/Frameworks"',
         "MARKETING_VERSION": MARKETING_VERSION,
         "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,

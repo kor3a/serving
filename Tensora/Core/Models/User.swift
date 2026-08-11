@@ -53,6 +53,19 @@ struct AppUser: Identifiable, Codable, Hashable {
         self.avatarURL = avatarURL
         self.createdAt = createdAt
     }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case accountType = "account_type"
+        case displayName = "display_name"
+        case ownerName = "owner_name"
+        case phone
+        case phoneVerified = "phone_verified"
+        case businessID = "business_id"
+        case avatarURL = "avatar_url"
+        case createdAt = "created_at"
+    }
 }
 
 /// Credentials returned by Django Auth after a password / OAuth exchange.
@@ -63,6 +76,13 @@ struct AuthSession: Codable, Hashable {
     var user: AppUser?
     /// Email carried over from OAuth / signup so the setup form can prefill it.
     var email: String
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case user
+        case email
+    }
 }
 
 /// Everything `SetUpAccountView` collects before an account becomes usable.
@@ -82,6 +102,18 @@ struct AccountSetupDraft: Codable, Hashable {
     // Shared
     var phone: String = ""
     var phoneVerified: Bool = false
+
+    enum CodingKeys: String, CodingKey {
+        case accountType = "account_type"
+        case email
+        case password
+        case businessName = "business_name"
+        case ownerName = "owner_name"
+        case address
+        case playerName = "player_name"
+        case phone
+        case phoneVerified = "phone_verified"
+    }
 
     var passwordIsValid: Bool { password.count >= 8 }
 

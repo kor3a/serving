@@ -2,16 +2,33 @@ import Foundation
 
 enum AppConfig {
 
-    /// Flip to `false` once the Django service is reachable.
+    /// Flip to `false` to talk to the Django service in `server/`.
     ///
     /// With the mock backend the whole app is usable in the simulator — sign
     /// in with any email and an 8+ character password (an address containing
     /// "shop" or "string" lands on the business side), verify the phone with
     /// any 6-digit code, and drive orders end to end.
+    ///
+    /// See docs/SETUP.md for starting the server and seeding demo accounts.
     static let useMockBackend = true
 
-    /// Base URL of the Django REST API, including the API version prefix.
-    static let apiBaseURL = URL(string: "https://api.tensora.app/v1/")!
+    /// Base URL of the Django REST API, including the version prefix.
+    ///
+    /// - Simulator: `http://localhost:8000/v1/` reaches a dev server on the
+    ///   same Mac.
+    /// - Physical device: use the Mac's LAN address, e.g.
+    ///   `http://192.168.1.20:8000/v1/`, and run the server with
+    ///   `python manage.py runserver 0.0.0.0:8000`.
+    ///
+    /// Plain HTTP works only because Info.plist carries an ATS exception for
+    /// local networking — remove it, and switch to https, before shipping.
+    static let apiBaseURL: URL = {
+        #if DEBUG
+        return URL(string: "http://localhost:8000/v1/")!
+        #else
+        return URL(string: "https://api.tensora.app/v1/")!
+        #endif
+    }()
 
     /// Stripe publishable key. Only the publishable key ever ships in the app;
     /// secret keys stay on the Django side.

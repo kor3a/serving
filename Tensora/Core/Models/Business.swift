@@ -8,6 +8,14 @@ struct PostalAddress: Codable, Hashable {
     var state: String = ""
     var postalCode: String = ""
 
+    enum CodingKeys: String, CodingKey {
+        case line1
+        case line2
+        case city
+        case state
+        case postalCode = "postal_code"
+    }
+
     var isComplete: Bool {
         !line1.trimmed.isEmpty && !city.trimmed.isEmpty && !state.trimmed.isEmpty && !postalCode.trimmed.isEmpty
     }
@@ -102,6 +110,27 @@ struct StringerBusiness: Identifiable, Codable, Hashable {
     var inventory: [StringProduct]
     var openHours: [OpenHours]
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case ownerName = "owner_name"
+        case phone
+        case address
+        case coordinate
+        case locationKind = "location_kind"
+        case isClaimed = "is_claimed"
+        case about
+        case rating
+        case ratingCount = "rating_count"
+        case typicalTurnaroundHours = "typical_turnaround_hours"
+        case acceptsBringYourOwnString = "accepts_bring_your_own_string"
+        case bringYourOwnStringFee = "bring_your_own_string_fee"
+        case dropOffInstructions = "drop_off_instructions"
+        case services
+        case inventory
+        case openHours = "open_hours"
+    }
+
     var ratingText: String {
         guard let rating else { return "New" }
         return String(format: "%.1f", rating)
@@ -155,6 +184,13 @@ struct OpenHours: Codable, Hashable, Identifiable {
     var closesAtMinutes: Int
     var isClosed: Bool
 
+    enum CodingKeys: String, CodingKey {
+        case weekday
+        case opensAtMinutes = "opens_at_minutes"
+        case closesAtMinutes = "closes_at_minutes"
+        case isClosed = "is_closed"
+    }
+
     var id: Int { weekday }
 
     /// Inverse of `isClosed`, so hour rows can bind a Toggle directly.
@@ -194,6 +230,15 @@ struct StringingService: Identifiable, Codable, Hashable {
     var laborPrice: Decimal
     var turnaroundHours: Int
     var isActive: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case details
+        case laborPrice = "labor_price"
+        case turnaroundHours = "turnaround_hours"
+        case isActive = "is_active"
+    }
 
     init(
         id: UUID = UUID(),
@@ -284,6 +329,19 @@ struct StringProduct: Identifiable, Codable, Hashable {
     var details: String
     var isActive: Bool
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case brand
+        case name
+        case category
+        case sport
+        case gauge
+        case price
+        case stockCount = "stock_count"
+        case details
+        case isActive = "is_active"
+    }
+
     init(
         id: UUID = UUID(),
         brand: String,
@@ -320,6 +378,15 @@ struct EarningsSnapshot: Codable, Hashable {
     var completedOrdersThisMonth: Int
     var nextPayoutDate: Date?
     var payoutStatus: PayoutStatus
+
+    enum CodingKeys: String, CodingKey {
+        case pendingPayout = "pending_payout"
+        case paidOutThisMonth = "paid_out_this_month"
+        case grossThisWeek = "gross_this_week"
+        case completedOrdersThisMonth = "completed_orders_this_month"
+        case nextPayoutDate = "next_payout_date"
+        case payoutStatus = "payout_status"
+    }
 
     static let empty = EarningsSnapshot(
         pendingPayout: 0,

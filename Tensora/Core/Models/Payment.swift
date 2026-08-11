@@ -60,6 +60,14 @@ struct PaymentRecord: Codable, Hashable {
     var chargedAt: Date?
     var last4: String?
 
+    enum CodingKeys: String, CodingKey {
+        case method
+        case state
+        case paymentIntentID = "payment_intent_id"
+        case chargedAt = "charged_at"
+        case last4
+    }
+
     static func unpaid(method: PaymentMethod = .applePay) -> PaymentRecord {
         PaymentRecord(method: method, state: .requiresPaymentMethod, paymentIntentID: nil, chargedAt: nil, last4: nil)
     }

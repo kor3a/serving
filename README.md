@@ -59,7 +59,7 @@ position, so the tracker cannot drift out of sync with the order.
 ## Project layout
 
 ```
-Tensora/
+Tensora/                     iOS app (SwiftUI)
 ├── App/                     App entry point, routing, composition root
 │   ├── TensoraApp.swift     @main, store wiring
 │   ├── AppEnvironment.swift AppConfig + which Backend is used
@@ -77,6 +77,17 @@ Tensora/
     ├── Shared/              OrderTrackerView
     ├── Player/              Discover map, storefront, checkout, orders, profile
     └── Business/            Dashboard, orders, calendar, storefront management
+
+server/                      Django + DRF API
+├── tensora/settings.py      Env-driven config (DB, JWT, Stripe, APNs)
+└── api/
+    ├── models.py            Users, businesses, storefront, orders
+    ├── serializers.py       The wire format, matching the Swift CodingKeys
+    ├── views.py             Every route in docs/API_CONTRACT.md
+    ├── pricing.py           Mirrors PricingEngine.swift
+    ├── payments.py          Stripe capture on accept-pickup
+    ├── oauth.py sms.py push.py
+    └── tests.py             Full lifecycle + payload-shape assertions
 ```
 
 ### Screens, mapped to the UI plan
@@ -93,18 +104,37 @@ Orders, Profile.
 status, Settings in the trailing nav position), Orders, Calendar (drop-offs and
 pick-ups by day), Storefront (merchandise, service pricing, public profile).
 
-## Connecting the Django backend
+## The backend
 
-1. Set `AppConfig.useMockBackend = false` and point `AppConfig.apiBaseURL` at
-   your service.
-2. Implement the routes in `docs/API_CONTRACT.md`. `LiveBackend` already calls
-   all of them; `Core/Networking/Endpoint.swift` lists every path in one place.
-3. The client sends and receives snake_case JSON with ISO-8601 timestamps, and
-   expects a `{access_token, refresh_token, user, email}` payload from the auth
-   endpoints. Tokens are stored in the keychain and refreshed automatically on
-   a 401.
+The Django + DRF service that the app talks to lives in `server/`. It runs on
+SQLite out of the box and on Supabase Postgres with one environment variable.
 
-`docs/supabase_schema.sql` has a starting Postgres schema matching the models.
+```sh
+cd server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python manage.py migrate
+python manage.py seed_demo
+python manage.py runserver
+```
+
+Then set `AppConfig.useMockBackend = false` in
+`Tensora/App/AppEnvironment.swift` and run the app in the simulator — sign in
+as `player@tensora.app` / `tensora123`.
+
+**docs/SETUP.md** is the full walkthrough: Supabase provisioning, Django Auth,
+Apple/Google sign-in, Stripe, Twilio, APNs and deployment.
+**docs/API_CONTRACT.md** specifies every route and payload.
+**docs/supabase_schema.sql** documents the Postgres schema (reference —
+Django's migrations are what actually create the tables).
+
+Two commands keep the halves in step:
+
+```sh
+python manage.py test            # order lifecycle + payload shapes
+python manage.py check_contract  # diffs the API's JSON keys against Swift CodingKeys
+```
 
 ### Payments
 
