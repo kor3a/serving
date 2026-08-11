@@ -189,7 +189,6 @@ struct DiscoverView: View {
 
     private var resultsSheet: some View {
         VStack(spacing: 0) {
-            sheetHeader
             searchBar
             filterChips
 
@@ -224,8 +223,15 @@ struct DiscoverView: View {
                             .listRowBackground(Theme.surface)
                         }
                     } header: {
-                        Text("\(discover.filteredResults.count) nearby · \(discover.claimedCount) on Tensora")
-                            .font(.caption)
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Text("\(discover.filteredResults.count) nearby · \(discover.claimedCount) on Tensora")
+                                .font(.caption)
+                            // Carries the refresh spinner the sheet header
+                            // used to hold.
+                            if discover.isLoading {
+                                ProgressView().controlSize(.mini)
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -233,21 +239,6 @@ struct DiscoverView: View {
             }
         }
         .background(Theme.background)
-    }
-
-    private var sheetHeader: some View {
-        HStack {
-            Text("Discover")
-                .font(.headline)
-                .foregroundStyle(Theme.primaryText)
-            Spacer()
-            if discover.isLoading {
-                ProgressView().controlSize(.small)
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, Theme.Spacing.sm)
-        .padding(.bottom, Theme.Spacing.sm)
     }
 
     private var searchBar: some View {
@@ -280,6 +271,8 @@ struct DiscoverView: View {
                 .fill(Theme.surfaceAlt)
         )
         .padding(.horizontal, Theme.Spacing.md)
+        // Clears the drag indicator, which the sheet header used to sit under.
+        .padding(.top, Theme.Spacing.md)
         .padding(.bottom, Theme.Spacing.sm)
     }
 
@@ -292,8 +285,8 @@ struct DiscoverView: View {
                 ForEach(RacquetSport.allCases) { sport in
                     FilterChip(
                         title: sport.label,
-                        systemImage: sport.iconName,
-                        isOn: discover.sportFilter == sport
+                        isOn: discover.sportFilter == sport,
+                        icon: { RacquetGlyph(sport: sport) }
                     ) {
                         discover.sportFilter = discover.sportFilter == sport ? nil : sport
                     }
@@ -414,18 +407,18 @@ struct BusinessRow: View {
     }
 }
 
-struct FilterChip: View {
+struct FilterChip<Icon: View>: View {
     let title: String
-    var systemImage: String?
     let isOn: Bool
+    /// The sport chips draw their racquet, so this takes a view rather than
+    /// an SF Symbol name.
+    @ViewBuilder var icon: Icon
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                if let systemImage {
-                    Image(systemName: systemImage).font(.caption)
-                }
+                icon
                 Text(title).font(.caption.weight(.semibold))
             }
             .foregroundStyle(isOn ? .white : Theme.primaryText)
@@ -436,6 +429,12 @@ struct FilterChip: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+extension FilterChip where Icon == EmptyView {
+    init(title: String, isOn: Bool, action: @escaping () -> Void) {
+        self.init(title: title, isOn: isOn, icon: { EmptyView() }, action: action)
     }
 }
 
