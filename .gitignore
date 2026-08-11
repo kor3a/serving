@@ -1,0 +1,26 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+Packages/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Secrets — keep Stripe/APNs keys and any local overrides out of the repo
+*.p8
+*.p12
+*.mobileprovision
+.env
+Secrets.xcconfig
