@@ -226,7 +226,10 @@ struct BusinessProfileEditorView: View {
                         .lineLimit(2...5)
                 }
 
-                Section("Drop-off & pick-up location") {
+                // A string title and a footer closure can't be combined —
+                // Section has no init(_:content:footer:), so the header goes
+                // in its own closure.
+                Section {
                     Picker("Location type", selection: $draft.locationKind) {
                         ForEach(DropOffLocationKind.allCases) { kind in
                             Text(kind.label).tag(kind)
@@ -241,6 +244,8 @@ struct BusinessProfileEditorView: View {
                         .keyboardType(.numbersAndPunctuation)
                     TextField("Drop-off instructions", text: $draft.dropOffInstructions, axis: .vertical)
                         .lineLimit(2...4)
+                } header: {
+                    Text("Drop-off & pick-up location")
                 } footer: {
                     Text("Home-based? Point this at a park or another public spot — this is the address players are shown.")
                 }
