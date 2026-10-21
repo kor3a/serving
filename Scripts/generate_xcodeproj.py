@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Tensora.xcodeproj from the files on disk.
+"""Generate Serving.xcodeproj from the files on disk.
 
 Run this after adding, renaming or deleting a source file so the project stays
 in sync:
@@ -18,11 +18,11 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE_DIR = ROOT / "Tensora"
-PROJECT_NAME = "Tensora"
+SOURCE_DIR = ROOT / "Serving"
+PROJECT_NAME = "Serving"
 PROJECT_PATH = ROOT / f"{PROJECT_NAME}.xcodeproj"
 
-BUNDLE_ID = "app.tensora.Tensora"
+BUNDLE_ID = "app.serving.Serving"
 DEPLOYMENT_TARGET = "17.0"
 SWIFT_VERSION = "5.0"
 MARKETING_VERSION = "1.0"
@@ -163,7 +163,7 @@ def target_settings() -> dict[str, str]:
         # App Transport Security exception for a local Django server is a
         # dictionary and can't be expressed as an INFOPLIST_KEY_ setting.
         "GENERATE_INFOPLIST_FILE": "NO",
-        "INFOPLIST_FILE": "Tensora/Resources/Info.plist",
+        "INFOPLIST_FILE": "Serving/Resources/Info.plist",
         "LD_RUNPATH_SEARCH_PATHS": '"$(inherited) @executable_path/Frameworks"',
         "MARKETING_VERSION": MARKETING_VERSION,
         "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,

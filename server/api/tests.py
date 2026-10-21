@@ -1,7 +1,7 @@
 """End-to-end tests for the order lifecycle and the JSON contract.
 
 The key-set assertions are deliberate: they are the guard against the server
-drifting from the `CodingKeys` in Tensora/Core/Models. If you add a field to a
+drifting from the `CodingKeys` in Serving/Core/Models. If you add a field to a
 Swift model, these tests should fail until the server sends it.
 
     python manage.py test
@@ -57,7 +57,7 @@ EARNINGS_KEYS = {"pending_payout", "paid_out_this_month", "gross_this_week",
                  "completed_orders_this_month", "next_payout_date", "payout_status"}
 
 
-class TensoraFlowTests(APITestCase):
+class ServingFlowTests(APITestCase):
     """Drives the whole player ↔ business flow over HTTP."""
 
     def setUp(self):
@@ -104,7 +104,7 @@ class TensoraFlowTests(APITestCase):
 
         self.player = User.objects.create_user(
             email="player@example.com",
-            password="tensora123",
+            password="serving123",
             account_type=AccountType.PLAYER,
             display_name="Alex Rivera",
             phone="(408) 555-0134",
@@ -113,7 +113,7 @@ class TensoraFlowTests(APITestCase):
         )
         self.owner = User.objects.create_user(
             email="shop@example.com",
-            password="tensora123",
+            password="serving123",
             account_type=AccountType.BUSINESS,
             display_name=self.business.name,
             owner_name="Jordan Kim",
@@ -126,7 +126,7 @@ class TensoraFlowTests(APITestCase):
 
     # ------------------------------------------------------------ helpers
 
-    def authenticate(self, email, password="tensora123"):
+    def authenticate(self, email, password="serving123"):
         response = self.client.post(
             "/v1/auth/login/", {"email": email, "password": password}, format="json"
         )
@@ -516,7 +516,7 @@ class TensoraFlowTests(APITestCase):
 
         # A third party sees nothing and cannot fetch the order directly.
         stranger = User.objects.create_user(
-            email="stranger@example.com", password="tensora123", setup_complete=True
+            email="stranger@example.com", password="serving123", setup_complete=True
         )
         self.authenticate("stranger@example.com")
         self.assertEqual(len(self.client.get("/v1/orders/").data), 0)

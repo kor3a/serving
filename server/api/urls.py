@@ -1,6 +1,6 @@
 """URL map.
 
-These paths must match `Routes` in Tensora/Core/Networking/Endpoint.swift.
+These paths must match `Routes` in Serving/Core/Networking/Endpoint.swift.
 Django's APPEND_SLASH is on, and the client sends trailing slashes, so keep
 them here too.
 """

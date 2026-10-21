@@ -1,6 +1,6 @@
-"""Data model for Tensora.
+"""Data model for Serving.
 
-Field names and enum values line up with Tensora/Core/Models in the iOS app —
+Field names and enum values line up with Serving/Core/Models in the iOS app —
 the enum values are the exact camelCase strings the Swift client decodes, so
 don't "tidy" them into snake_case.
 """

@@ -1,10 +1,10 @@
-# Tensora
+# Serving
 
 iOS app for tennis and badminton players and racquet stringers. Players find
 stringers on a map, order string (or bring their own), and book a drop-off.
 Stringers run a storefront, take orders and get paid.
 
-Open `Tensora.xcodeproj` in Xcode and hit Run — it builds and runs against an
+Open `Serving.xcodeproj` in Xcode and hit Run — it builds and runs against an
 in-memory backend, so the whole flow works with no server.
 
 ## Requirements
@@ -22,7 +22,7 @@ implements every server call in memory:
 | Step | What to do |
 | --- | --- |
 | Sign in as a **player** | Any email + any 8-character password |
-| Sign in as a **business** | An email containing `shop` or `string`, e.g. `shop@tensora.app` |
+| Sign in as a **business** | An email containing `shop` or `string`, e.g. `shop@serving.app` |
 | Phone verification | Any 6-digit code (`424242` is the demo code) |
 | Sign in with Apple | Works on device; returns a mock session in the simulator |
 
@@ -60,9 +60,9 @@ position, so the tracker cannot drift out of sync with the order.
 ## Project layout
 
 ```
-Tensora/                     iOS app (SwiftUI)
+Serving/                     iOS app (SwiftUI)
 ├── App/                     App entry point, routing, composition root
-│   ├── TensoraApp.swift     @main, store wiring
+│   ├── ServingApp.swift     @main, store wiring
 │   ├── AppEnvironment.swift AppConfig + which Backend is used
 │   ├── AppDelegate.swift    APNs registration
 │   └── RootView.swift       Landing → auth → setup → business/player
@@ -80,7 +80,7 @@ Tensora/                     iOS app (SwiftUI)
     └── Business/            Dashboard, orders, calendar, storefront management
 
 server/                      Django + DRF API
-├── tensora/settings.py      Env-driven config (DB, JWT, Stripe, APNs)
+├── serving/settings.py      Env-driven config (DB, JWT, Stripe, APNs)
 └── api/
     ├── models.py            Users, businesses, storefront, orders
     ├── serializers.py       The wire format, matching the Swift CodingKeys
@@ -121,8 +121,8 @@ python manage.py runserver
 ```
 
 Then set `AppConfig.useMockBackend = false` in
-`Tensora/App/AppEnvironment.swift` and run the app in the simulator — sign in
-as `player@tensora.app` / `tensora123`.
+`Serving/App/AppEnvironment.swift` and run the app in the simulator — sign in
+as `player@serving.app` / `serving123`.
 
 **docs/SETUP.md** is the full walkthrough: Supabase provisioning, Django Auth,
 Apple/Google sign-in, Stripe, Twilio, APNs and deployment.
@@ -150,11 +150,11 @@ that request.
 
 The project builds without any signing capabilities so it runs out of the box.
 Before a real build, add these in **Signing & Capabilities** and set
-`CODE_SIGN_ENTITLEMENTS` to `Tensora/Tensora.entitlements`:
+`CODE_SIGN_ENTITLEMENTS` to `Serving/Serving.entitlements`:
 
 - Push Notifications (APNs)
 - Sign in with Apple
-- Apple Pay (merchant id `merchant.app.tensora`)
+- Apple Pay (merchant id `merchant.app.serving`)
 
 Google sign-in needs the GoogleSignIn SDK; `LoginView.googleButton` marks the
 one place to call it, and the ID token it returns goes to

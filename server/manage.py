@@ -14,12 +14,12 @@ def main():
         running = ".".join(str(part) for part in sys.version_info[:3])
         required = ".".join(str(part) for part in REQUIRED_PYTHON)
         sys.exit(
-            f"Tensora's server needs Python {required}+, but this is {running}.\n"
+            f"Serving's server needs Python {required}+, but this is {running}.\n"
             f"Install a newer Python (brew install python@3.13) and run "
             f"./setup.sh --recreate."
         )
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tensora.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "serving.settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

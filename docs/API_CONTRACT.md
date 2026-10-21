@@ -1,12 +1,12 @@
-# Tensora API contract
+# Serving API contract
 
 What the iOS client expects from the Django REST Framework service. Every route
-here is called by `Tensora/Core/Networking/LiveBackend.swift`; the paths are
+here is called by `Serving/Core/Networking/LiveBackend.swift`; the paths are
 listed in `Endpoint.swift` under `Routes`.
 
 ## Conventions
 
-- Base URL includes the version prefix: `https://api.tensora.app/v1/`
+- Base URL includes the version prefix: `https://api.serving.app/v1/`
 - JSON in, JSON out, **snake_case** keys. The Swift models declare their
   `CodingKeys` explicitly, so the keys below are exactly what goes on the wire.
 - Timestamps are ISO-8601 with a timezone: `2026-08-12T18:30:00Z`. The client
@@ -77,7 +77,7 @@ server-side rather than trusting `phone_verified`.
 
 Results mix two kinds of record and the client branches on `is_claimed`:
 
-- `is_claimed: true` — a Tensora storefront. Full object, orderable.
+- `is_claimed: true` — a Serving storefront. Full object, orderable.
 - `is_claimed: false` — a shop sourced from map data with no account. Only
   `name`, `address`, `coordinate` and `phone` are shown, and the app offers a
   phone call instead of checkout.
@@ -223,7 +223,7 @@ tax                       = resolved from the drop-off address
 ```
 
 The stringer's payout is `strings_subtotal + labor_subtotal +
-bring_your_own_string_fee` — the service fee is Tensora's.
+bring_your_own_string_fee` — the service fee is Serving's.
 
 ## Storefront management
 

@@ -2,7 +2,7 @@
 
     python manage.py check_contract
 
-Parses the `CodingKeys` enums out of Tensora/Core/Models/*.swift, renders each
+Parses the `CodingKeys` enums out of Serving/Core/Models/*.swift, renders each
 serializer with throwaway data, and diffs the key sets. This is the guard that
 the two halves of the app still agree — a missing or renamed key is a decode
 failure on the device that no Python test would otherwise catch.
@@ -38,7 +38,7 @@ from api.serializers import (
     UserSerializer,
 )
 
-SWIFT_MODEL_DIR = Path(__file__).resolve().parents[4] / "Tensora" / "Core" / "Models"
+SWIFT_MODEL_DIR = Path(__file__).resolve().parents[4] / "Serving" / "Core" / "Models"
 
 CASE_RE = re.compile(r"^\s*case\s+(\w+)(?:\s*=\s*\"([^\"]+)\")?\s*$", re.MULTILINE)
 
@@ -196,7 +196,7 @@ class Command(BaseCommand):
 
                 player = User.objects.create_user(
                     email="contract-check@example.com",
-                    password="tensora123",
+                    password="serving123",
                     account_type=AccountType.PLAYER,
                     display_name="Alex Rivera",
                     phone="(408) 555-0134",

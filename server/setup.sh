@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# One-command setup for the Tensora API.
+# One-command setup for the Serving API.
 #
 #   ./setup.sh              create the venv, install, migrate, seed
 #   ./setup.sh --recreate   delete an existing .venv first
@@ -117,10 +117,10 @@ Start the server:
     source .venv/bin/activate
     python manage.py runserver
 
-Then set useMockBackend = false in Tensora/App/AppEnvironment.swift and run
+Then set useMockBackend = false in Serving/App/AppEnvironment.swift and run
 the app. Sign in with:
 
-    player@tensora.app / tensora123     (player side)
-    shop@tensora.app   / tensora123     (business side)
+    player@serving.app / serving123     (player side)
+    shop@serving.app   / serving123     (business side)
 
 EOF

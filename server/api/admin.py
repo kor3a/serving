@@ -76,5 +76,5 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 admin.site.register([DeviceToken, PhoneVerification, Payout])
-admin.site.site_header = "Tensora"
-admin.site.site_title = "Tensora"
+admin.site.site_header = "Serving"
+admin.site.site_title = "Serving"

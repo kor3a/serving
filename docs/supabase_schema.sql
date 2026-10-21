@@ -1,6 +1,6 @@
--- Tensora — Postgres / Supabase schema
+-- Serving — Postgres / Supabase schema
 --
--- Matches the models in Tensora/Core/Models. Django owns writes through DRF;
+-- Matches the models in Serving/Core/Models. Django owns writes through DRF;
 -- this file is the starting point for the initial migration.
 
 create extension if not exists "uuid-ossp";
