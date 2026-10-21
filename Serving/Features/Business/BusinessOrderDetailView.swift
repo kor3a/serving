@@ -11,6 +11,8 @@ struct BusinessOrderDetailView: View {
     @State private var isAcknowledging = false
     @State private var showDeclineDialog = false
     @State private var isUpdatingStatus = false
+    @State private var isMarkingReady = false
+    @State private var showPickUpConfirmation = false
 
     private var order: Order? { orders.order(id: orderID) }
 
@@ -39,6 +41,16 @@ struct BusinessOrderDetailView: View {
                 AcknowledgeOrderSheet(order: order)
             }
         }
+        .sheet(isPresented: $isMarkingReady) {
+            if let order {
+                MarkReadySheet(order: order) {
+                    showPickUpConfirmation = true
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showPickUpConfirmation) {
+            PickUpConfirmationView(orderID: orderID, role: .business)
+        }
         .confirmationDialog("Decline this order?", isPresented: $showDeclineDialog, titleVisibility: .visible) {
             Button("Decline", role: .destructive) {
                 Task { await orders.decline(orderID: orderID, reason: nil) }
@@ -55,10 +67,7 @@ struct BusinessOrderDetailView: View {
     private func statusCard(_ order: Order) -> some View {
         Card(padding: Theme.Spacing.lg) {
             VStack(spacing: Theme.Spacing.md) {
-                OrderTrackerView(
-                    currentStep: order.trackerStep,
-                    isCancelled: order.status == .cancelled || order.status == .declined
-                )
+                OrderTrackerView(order: order)
                 if order.trackerStep == nil {
                     Badge(text: order.status.label, tint: order.status.tint, filled: true)
                 }
@@ -136,13 +145,18 @@ struct BusinessOrderDetailView: View {
             .disabled(isUpdatingStatus)
 
         case .inProgress:
-            Button("Mark complete — ready for pick up") {
-                Task { await setStatus(.complete) }
+            Button("Mark ready for pick up") {
+                isMarkingReady = true
             }
-            .buttonStyle(PrimaryButtonStyle(tint: Theme.success, isLoading: isUpdatingStatus))
-            .disabled(isUpdatingStatus)
+            .buttonStyle(PrimaryButtonStyle(tint: Theme.success))
 
-        case .complete, .declined, .cancelled:
+        case .complete:
+            Button("Pick-up confirmation") {
+                showPickUpConfirmation = true
+            }
+            .buttonStyle(PrimaryButtonStyle(tint: Theme.success))
+
+        case .pickedUp, .declined, .cancelled:
             EmptyView()
         }
     }
@@ -313,6 +327,77 @@ struct AcknowledgeOrderSheet: View {
         defer { isSaving = false }
         await orders.acknowledge(orderID: order.id, proposedPickUp: pickUpDate, note: note)
         dismiss()
+    }
+}
+
+/// Marking a racquet ready: the stringer confirms where it is collected and
+/// the pick-up time both sides agreed on, then both get a pick-up
+/// confirmation with those details.
+struct MarkReadySheet: View {
+
+    let order: Order
+    /// Called once the order comes back marked ready.
+    var onReady: () -> Void
+
+    @EnvironmentObject private var orders: OrderStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    Text("Confirm where and when \(order.playerName) collects their racquet.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Card(padding: Theme.Spacing.lg) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                            PickUpLocationRow(order: order)
+                            Divider().overlay(Theme.separator)
+                            ScheduleRow(
+                                title: "Pick Up Date & Time:",
+                                date: order.confirmedPickUpDate,
+                                iconName: "calendar",
+                                detail: "The time \(order.playerName) accepted"
+                            )
+                        }
+                    }
+
+                    Text("You and \(order.playerName) will both get a pick-up confirmation with these details.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Button("Confirm & mark ready") {
+                        Task { await markReady() }
+                    }
+                    .buttonStyle(PrimaryButtonStyle(tint: Theme.success, isLoading: isSaving))
+                    .disabled(isSaving)
+                }
+                .padding(Theme.Spacing.lg)
+            }
+            .screenBackground()
+            .navigationTitle("Ready for pick up")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(isSaving)
+    }
+
+    private func markReady() async {
+        isSaving = true
+        defer { isSaving = false }
+        let updated = await orders.updateStatus(orderID: order.id, status: .complete)
+        dismiss()
+        if updated?.status == .complete { onReady() }
     }
 }
 

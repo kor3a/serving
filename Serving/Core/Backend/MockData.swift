@@ -419,7 +419,7 @@ enum MockData {
             updatedAt: calendar.date(byAdding: .minute, value: -35, to: now) ?? now
         )
 
-        let complete = Order(
+        let pickedUp = Order(
             id: UUID(uuidString: "99999999-0000-0000-0000-000000000003")!,
             orderNumber: "TN-4699",
             businessID: shop.id,
@@ -454,12 +454,12 @@ enum MockData {
                 chargedAt: calendar.date(byAdding: .day, value: -9, to: now),
                 last4: "4242"
             ),
-            status: .complete,
+            status: .pickedUp,
             createdAt: calendar.date(byAdding: .day, value: -10, to: now) ?? now,
             updatedAt: calendar.date(byAdding: .day, value: -8, to: now) ?? now
         )
 
-        return [awaitingBusiness, confirmed, complete]
+        return [awaitingBusiness, confirmed, pickedUp]
     }
 
     static func makeEarnings() -> EarningsSnapshot {

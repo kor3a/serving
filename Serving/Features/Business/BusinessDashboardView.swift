@@ -18,7 +18,7 @@ struct BusinessDashboardView: View {
                         StatTile(
                             title: "Active orders",
                             value: "\(orders.active.count)",
-                            caption: "on the machine or awaiting drop-off",
+                            caption: "awaiting drop-off, on the machine or pick up",
                             tint: Theme.accent,
                             iconName: "figure.tennis"
                         )

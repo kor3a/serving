@@ -12,6 +12,9 @@ final class OrderStore: ObservableObject {
     /// Set after an order is confirmed so the flow can push straight to the
     /// Order Confirmation screen.
     @Published var justConfirmedOrder: Order?
+    /// Set when a refresh finds one of the player's orders newly marked ready,
+    /// so the Orders tab can open its pick-up confirmation.
+    @Published var readyForPickUpOrder: Order?
 
     private let backend: Backend
     private var role: AccountType = .player
@@ -43,7 +46,14 @@ final class OrderStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            orders = try await backend.orders(role: role, userID: userID)
+            let previous = Dictionary(uniqueKeysWithValues: orders.map { ($0.id, $0.status) })
+            let fresh = try await backend.orders(role: role, userID: userID)
+            if role == .player, let ready = fresh.first(where: { order in
+                order.status == .complete && previous[order.id].map { $0 != .complete } == true
+            }) {
+                readyForPickUpOrder = ready
+            }
+            orders = fresh
         } catch let error as BackendError {
             errorMessage = error.errorDescription
         } catch {

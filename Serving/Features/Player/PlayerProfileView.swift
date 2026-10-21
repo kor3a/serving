@@ -10,7 +10,7 @@ struct PlayerProfileView: View {
     @State private var showSignOutDialog = false
 
     private var completedCount: Int {
-        orders.orders.filter { $0.status == .complete }.count
+        orders.orders.filter { $0.status == .complete || $0.status == .pickedUp }.count
     }
 
     var body: some View {

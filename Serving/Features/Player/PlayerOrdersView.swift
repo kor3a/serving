@@ -4,6 +4,8 @@ struct PlayerOrdersView: View {
 
     @EnvironmentObject private var orders: OrderStore
     @State private var filter: Filter = .active
+    @State private var isVisible = false
+    @State private var pickUpOrder: Order?
 
     enum Filter: String, CaseIterable, Identifiable {
         case active = "Active"
@@ -58,6 +60,9 @@ struct PlayerOrdersView: View {
                     }
                 }
             }
+            .fullScreenCover(item: $pickUpOrder) { order in
+                PickUpConfirmationView(orderID: order.id, role: .player)
+            }
             .screenBackground()
             .navigationTitle("Orders")
             .refreshable { await orders.refresh() }
@@ -66,7 +71,22 @@ struct PlayerOrdersView: View {
             .fullScreenCover(item: $orders.justConfirmedOrder) { order in
                 OrderConfirmationView(order: order)
             }
+            .onAppear {
+                isVisible = true
+                presentReadyOrder()
+            }
+            .onDisappear { isVisible = false }
+            .onChange(of: orders.readyForPickUpOrder) { _, _ in presentReadyOrder() }
         }
+    }
+
+    /// Opens the pick-up confirmation for an order that just became ready —
+    /// only while this tab is on screen, so it can't present from behind
+    /// another tab.
+    private func presentReadyOrder() {
+        guard isVisible, let ready = orders.readyForPickUpOrder else { return }
+        orders.readyForPickUpOrder = nil
+        pickUpOrder = ready
     }
 
     private var emptyIcon: String {
@@ -115,7 +135,7 @@ struct PlayerOrderCard: View {
                 }
 
                 if order.status.trackerStep != nil {
-                    OrderTrackerView(currentStep: order.trackerStep)
+                    OrderTrackerView(order: order)
                         .padding(.vertical, Theme.Spacing.xs)
                 }
 
@@ -138,6 +158,11 @@ struct PlayerOrderCard: View {
                     Text("Tap to accept the proposed pick-up time and pay.")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Theme.clay)
+                }
+                if order.status == .complete {
+                    Text("Ready for pick up. Tap for location and time.")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Theme.success)
                 }
             }
         }

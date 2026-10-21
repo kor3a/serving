@@ -130,8 +130,8 @@ Results mix two kinds of record and the client branches on `is_claimed`:
 | POST | `orders/{id}/acknowledge/` | `proposed_pick_up_date`, `note?` | Business only → `awaitingPlayerApproval` |
 | POST | `orders/{id}/decline/` | `reason?` | Business only → `declined` |
 | POST | `orders/{id}/accept-pickup/` | `payment_method` | Player only. **Captures payment**, → `confirmed` |
-| PATCH | `orders/{id}/status/` | `status` | Business only: `inProgress`, `complete` |
-| POST | `orders/{id}/cancel/` | — | Refunds if already captured |
+| PATCH | `orders/{id}/status/` | `status` | Business only, one step at a time: `inProgress` → `complete` (ready for pick up) → `pickedUp` |
+| POST | `orders/{id}/cancel/` | — | Refunds if already captured. Not allowed once `complete` |
 
 `OrderDraft`:
 
@@ -206,7 +206,9 @@ from the storefront, or one the player brings themselves:
 ```
 
 `status`: `awaitingBusiness`, `awaitingPlayerApproval`, `confirmed`,
-`inProgress`, `complete`, `declined`, `cancelled`.
+`inProgress`, `complete`, `pickedUp`, `declined`, `cancelled`. `complete` means
+strung and ready for pick up at the drop-off address and
+`confirmed_pick_up_date`; `pickedUp` means the racquet has been handed back.
 
 `payment.state`: `requiresPaymentMethod`, `requiresConfirmation`, `processing`,
 `succeeded`, `failed`, `refunded`.
@@ -271,5 +273,6 @@ Orders tab. Events worth sending:
 | `order.declined` | player | Stringer declines |
 | `order.confirmed` | business | Player accepts and pays |
 | `order.in_progress` | player | Stringer starts |
-| `order.complete` | player | Ready for pick up |
+| `order.complete` | both | Ready for pick up: the pick-up confirmation, with location, date & time |
+| `order.picked_up` | player | Racquet handed back |
 | `order.cancelled` | both | Either side cancels |
