@@ -94,6 +94,7 @@ extension OrderStatus {
         case .confirmed: return Theme.accent
         case .inProgress: return Theme.court
         case .complete: return Theme.success
+        case .pickedUp: return Theme.secondaryText
         case .declined, .cancelled: return Theme.danger
         }
     }

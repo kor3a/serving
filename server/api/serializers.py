@@ -385,10 +385,10 @@ class OrderStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=OrderStatus.choices)
 
     def validate_status(self, value):
-        allowed = {OrderStatus.IN_PROGRESS, OrderStatus.COMPLETE}
+        allowed = {OrderStatus.IN_PROGRESS, OrderStatus.COMPLETE, OrderStatus.PICKED_UP}
         if value not in allowed:
             raise serializers.ValidationError(
-                "Only inProgress and complete can be set directly."
+                "Only inProgress, complete and pickedUp can be set directly."
             )
         return value
 

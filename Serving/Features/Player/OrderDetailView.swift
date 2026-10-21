@@ -14,6 +14,7 @@ struct OrderDetailView: View {
     @State private var isAcceptingProposal = false
     @State private var showConfirmation = false
     @State private var showCancelDialog = false
+    @State private var showPickUpConfirmation = false
 
     private var order: Order? { orders.order(id: orderID) }
 
@@ -30,12 +31,15 @@ struct OrderDetailView: View {
                     if order.status == .awaitingBusiness {
                         awaitingCallout(order)
                     }
+                    if order.status == .complete {
+                        readyCallout(order)
+                    }
 
                     stringerSection(order)
                     racquetsSection(order)
                     paymentSection(order)
 
-                    if !order.status.isClosed {
+                    if order.status.isCancellable {
                         Button("Cancel order", role: .destructive) {
                             showCancelDialog = true
                         }
@@ -69,6 +73,14 @@ struct OrderDetailView: View {
                 OrderConfirmationView(order: order)
             }
         }
+        .fullScreenCover(isPresented: $showPickUpConfirmation) {
+            PickUpConfirmationView(orderID: orderID, role: .player)
+        }
+        .onChange(of: orders.readyForPickUpOrder) { _, ready in
+            // This screen already shows the ready callout, so the Orders tab
+            // shouldn't open the confirmation again on the way back.
+            if ready?.id == orderID { orders.readyForPickUpOrder = nil }
+        }
         .confirmationDialog(
             "Cancel this order?",
             isPresented: $showCancelDialog,
@@ -89,10 +101,7 @@ struct OrderDetailView: View {
     private func trackerSection(_ order: Order) -> some View {
         Card(padding: Theme.Spacing.lg) {
             VStack(spacing: Theme.Spacing.md) {
-                OrderTrackerView(
-                    currentStep: order.trackerStep,
-                    isCancelled: order.status == .cancelled || order.status == .declined
-                )
+                OrderTrackerView(order: order)
 
                 if order.trackerStep == nil {
                     Badge(text: order.status.label, tint: order.status.tint, filled: true)
@@ -160,6 +169,31 @@ struct OrderDetailView: View {
                     isAcceptingProposal = true
                 }
                 .buttonStyle(PrimaryButtonStyle())
+            }
+        }
+    }
+
+    private func readyCallout(_ order: Order) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                Label("Ready for pick up", systemImage: "bag.badge.checkmark")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.success)
+
+                if let pickUp = order.confirmedPickUpDate {
+                    Text(pickUp.dropOffLabel)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(Theme.primaryText)
+                }
+                Text(order.dropOffAddress.oneLine)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button("Pick-up confirmation") {
+                    showPickUpConfirmation = true
+                }
+                .buttonStyle(PrimaryButtonStyle(tint: Theme.success))
             }
         }
     }

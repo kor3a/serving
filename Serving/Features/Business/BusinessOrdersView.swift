@@ -109,6 +109,11 @@ struct BusinessOrderCard: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Theme.warning)
                     }
+                    if order.status == .complete {
+                        Text("Awaiting pick up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.success)
+                    }
                 }
             }
         }
