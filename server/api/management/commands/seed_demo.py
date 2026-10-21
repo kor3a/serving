@@ -5,8 +5,8 @@
 Creates two sign-in-able accounts and a handful of Sunnyvale-area shops,
 including two unclaimed ones so the map shows both kinds of pin.
 
-    player@tensora.app / tensora123
-    shop@tensora.app   / tensora123
+    player@serving.app / serving123
+    shop@serving.app   / serving123
 """
 
 from datetime import timedelta
@@ -28,7 +28,7 @@ from api.models import (
     User,
 )
 
-DEMO_PASSWORD = "tensora123"
+DEMO_PASSWORD = "serving123"
 
 
 class Command(BaseCommand):
@@ -44,7 +44,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["reset"]:
             Business.objects.filter(name__in=DEMO_BUSINESS_NAMES).delete()
-            User.objects.filter(email__in=["player@tensora.app", "shop@tensora.app"]).delete()
+            User.objects.filter(email__in=["player@serving.app", "shop@serving.app"]).delete()
             self.stdout.write("Cleared previous demo data.")
 
         baseline = self._baseline_string_lab()
@@ -53,7 +53,7 @@ class Command(BaseCommand):
         self._unclaimed_shops()
 
         player, created = User.objects.get_or_create(
-            email="player@tensora.app",
+            email="player@serving.app",
             defaults={
                 "account_type": AccountType.PLAYER,
                 "display_name": "Alex Rivera",
@@ -66,7 +66,7 @@ class Command(BaseCommand):
         player.save()
 
         owner, _ = User.objects.get_or_create(
-            email="shop@tensora.app",
+            email="shop@serving.app",
             defaults={
                 "account_type": AccountType.BUSINESS,
                 "display_name": baseline.name,
@@ -83,8 +83,8 @@ class Command(BaseCommand):
         owner.save()
 
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
-        self.stdout.write(f"  player@tensora.app / {DEMO_PASSWORD}")
-        self.stdout.write(f"  shop@tensora.app   / {DEMO_PASSWORD}  (manages {baseline.name})")
+        self.stdout.write(f"  player@serving.app / {DEMO_PASSWORD}")
+        self.stdout.write(f"  shop@serving.app   / {DEMO_PASSWORD}  (manages {baseline.name})")
 
     # ------------------------------------------------------------ shops
 
@@ -261,7 +261,7 @@ class Command(BaseCommand):
         return business
 
     def _unclaimed_shops(self):
-        """Shops that exist on the map but have no Tensora account."""
+        """Shops that exist on the map but have no Serving account."""
         Business.objects.update_or_create(
             name="Courtside Racquet Sports",
             defaults={

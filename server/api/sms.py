@@ -62,7 +62,7 @@ def _send_via_twilio(phone: str, code: str) -> None:
     client.messages.create(
         to=f"+1{phone}" if len(phone) == 10 else f"+{phone}",
         from_=settings.TWILIO_FROM_NUMBER,
-        body=f"Your Tensora verification code is {code}.",
+        body=f"Your Serving verification code is {code}.",
     )
 
 

@@ -1,6 +1,6 @@
 """Order pricing — the server-side source of truth.
 
-Mirrors Tensora/Core/Backend/PricingEngine.swift, which computes the same
+Mirrors Serving/Core/Backend/PricingEngine.swift, which computes the same
 numbers for the pre-submit estimate. If you change one, change the other.
 """
 

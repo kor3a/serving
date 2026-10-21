@@ -566,7 +566,7 @@ def _create_order(request):
     business = get_object_or_404(business_queryset(), pk=draft["business_id"])
     if not business.is_claimed:
         return Response(
-            {"detail": "This shop isn't on Tensora yet — call them to book."},
+            {"detail": "This shop isn't on Serving yet — call them to book."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

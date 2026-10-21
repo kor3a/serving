@@ -25,7 +25,7 @@ class OrderTransitionError(APIException):
     default_code = "invalid_transition"
 
 
-def tensora_exception_handler(exc, context):
+def serving_exception_handler(exc, context):
     response = drf_exception_handler(exc, context)
     if response is None:
         return None

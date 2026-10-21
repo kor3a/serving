@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Not wired into the build settings, so the project runs without any
+	  provisioning setup. To enable these, add the matching capabilities in
+	  Signing & Capabilities and set CODE_SIGN_ENTITLEMENTS to
+	  Serving/Serving.entitlements.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<key>com.apple.developer.in-app-payments</key>
+	<array>
+		<string>merchant.app.serving</string>
+	</array>
+</dict>
+</plist>

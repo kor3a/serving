@@ -1,4 +1,4 @@
-# Running Tensora against a real backend
+# Running Serving against a real backend
 
 The iOS app ships with an in-memory backend so it runs with no server at all.
 This guide switches it over to the Django + Postgres service in `server/`.
@@ -79,10 +79,10 @@ curl http://localhost:8000/v1/health/
 
 | Account | Password | What it is |
 | --- | --- | --- |
-| `player@tensora.app` | `tensora123` | Player account |
-| `shop@tensora.app` | `tensora123` | Business account managing Baseline String Lab |
+| `player@serving.app` | `serving123` | Player account |
+| `shop@serving.app` | `serving123` | Business account managing Baseline String Lab |
 
-plus five Sunnyvale-area shops — three Tensora storefronts and two unclaimed
+plus five Sunnyvale-area shops — three Serving storefronts and two unclaimed
 ones, so the map shows both kinds of pin.
 
 Want an admin UI? `python manage.py createsuperuser`, then
@@ -92,7 +92,7 @@ http://localhost:8000/admin/ — you can inspect and edit every order there.
 
 ## Part 2 — Point the app at it
 
-In `Tensora/App/AppEnvironment.swift`:
+In `Serving/App/AppEnvironment.swift`:
 
 ```swift
 static let useMockBackend = false
@@ -101,8 +101,8 @@ static let useMockBackend = false
 That's the only change. `apiBaseURL` already defaults to
 `http://localhost:8000/v1/` in DEBUG builds.
 
-Run the app in the **simulator** and sign in as `player@tensora.app` /
-`tensora123`.
+Run the app in the **simulator** and sign in as `player@serving.app` /
+`serving123`.
 
 ### On a physical device
 
@@ -116,7 +116,7 @@ python manage.py runserver 0.0.0.0:8000
 and set the DEBUG branch of `apiBaseURL` to `http://192.168.1.20:8000/v1/`
 (your address). Both devices must be on the same Wi-Fi.
 
-Plain HTTP works because `Tensora/Resources/Info.plist` carries an App
+Plain HTTP works because `Serving/Resources/Info.plist` carries an App
 Transport Security exception for local networking. **Delete that
 `NSAppTransportSecurity` dictionary before shipping** — production runs on
 HTTPS, which needs no exception.
@@ -263,7 +263,7 @@ checkout, so there's no authorize/capture pair to manage.
 For the money to reach stringers rather than your own balance, set up **Stripe
 Connect**: onboard each business, store the connected account id on
 `Business.stripe_account_id`, and `payments.py` will route the charge with
-`application_fee_amount` set to Tensora's service fee.
+`application_fee_amount` set to Serving's service fee.
 
 Apple Pay needs the Stripe iOS SDK on the client to produce a payment method
 id; pass it as `payment_method_id` in the accept-pickup call.
@@ -286,12 +286,12 @@ Also `pip install twilio` — it's imported lazily so it stays optional.
    APNS_KEY_ID=ABC123DEFG
    APNS_TEAM_ID=YOURTEAMID
    APNS_KEY_PATH=/absolute/path/to/AuthKey_ABC123DEFG.p8
-   APNS_TOPIC=app.tensora.Tensora
+   APNS_TOPIC=app.serving.Serving
    APNS_USE_SANDBOX=true
    ```
 3. `pip install "httpx[http2]"` — APNs requires HTTP/2.
 4. Enable Push Notifications in Xcode's Signing & Capabilities and set
-   `CODE_SIGN_ENTITLEMENTS` to `Tensora/Tensora.entitlements`.
+   `CODE_SIGN_ENTITLEMENTS` to `Serving/Serving.entitlements`.
 
 Push is best-effort: the app also refreshes on pull-to-refresh and on
 appearance, so a missing notification never strands an order.
@@ -313,7 +313,7 @@ OAUTH_ALLOW_UNVERIFIED_TOKENS=false
 Then:
 
 - run `python manage.py migrate` on deploy,
-- serve with gunicorn or uvicorn (`tensora.wsgi:application`),
+- serve with gunicorn or uvicorn (`serving.wsgi:application`),
 - terminate TLS at the load balancer,
 - remove the `NSAppTransportSecurity` block from `Info.plist`,
 - point the release branch of `apiBaseURL` at your domain.
@@ -333,7 +333,7 @@ python manage.py test            # 29 tests: full order lifecycle + payload shap
 python manage.py check_contract  # diffs the API's JSON keys against the Swift CodingKeys
 ```
 
-`check_contract` parses `CodingKeys` out of `Tensora/Core/Models/*.swift`,
+`check_contract` parses `CodingKeys` out of `Serving/Core/Models/*.swift`,
 renders each serializer, and fails if a key is missing, renamed or unexpected.
 It's the guard against a change on one side quietly breaking decoding on the
 other — which is otherwise invisible until the app throws at runtime.
