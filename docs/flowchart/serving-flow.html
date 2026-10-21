@@ -1,0 +1,830 @@
+<title>Serving Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-screen editor. Court-green header, dotted canvas with lane bands, side panel (bottom sheet on phones). */
+:root {
+  --bg: #ffffff; --dot: #000000; --surface: #ffffff; --surface-2: #ffffff;
+  --fg: #000000; --muted: #000000; --line: #000000;
+  --court: #000000; --on-court: #ffffff; --on-court-muted: #ffffff;
+  --sel: #000000; --edge: #000000;
+  --ok: #000000; --warn: #000000; --danger: #000000; --on-strong: #ffffff;
+  --lo: #000000; --lo-t: #ffffff;
+  --lp: #000000; --lp-t: #ffffff;
+  --lb: #000000; --lb-t: #ffffff;
+  --ls: #000000; --ls-t: #ffffff;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #000000; --dot: #ffffff; --surface: #000000; --surface-2: #000000;
+  --fg: #ffffff; --muted: #ffffff; --line: #ffffff;
+  --court: #000000; --on-court: #ffffff; --on-court-muted: #ffffff;
+  --sel: #ffffff; --edge: #ffffff;
+  --ok: #ffffff; --warn: #ffffff; --danger: #ffffff; --on-strong: #000000;
+  --lo: #ffffff; --lo-t: #000000;
+  --lp: #ffffff; --lp-t: #000000;
+  --lb: #ffffff; --lb-t: #000000;
+  --ls: #ffffff; --ls-t: #000000;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #000000; --dot: #ffffff; --surface: #000000; --surface-2: #000000;
+  --fg: #ffffff; --muted: #ffffff; --line: #ffffff;
+  --court: #000000; --on-court: #ffffff; --on-court-muted: #ffffff;
+  --sel: #ffffff; --edge: #ffffff;
+  --ok: #ffffff; --warn: #ffffff; --danger: #ffffff; --on-strong: #000000;
+  --lo: #ffffff; --lo-t: #000000;
+  --lp: #ffffff; --lp-t: #000000;
+  --lb: #ffffff; --lb-t: #000000;
+  --ls: #ffffff; --ls-t: #000000;
+  color-scheme: dark;
+}
+html { height: 100%; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; overflow: hidden; }
+button, select, textarea, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top {
+  background: var(--court); color: var(--on-court); border-bottom: 1px solid var(--line);
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand .word { font: 700 15px var(--font-display); letter-spacing: .22em; }
+.brand .doc { font: 600 18px var(--font-display); letter-spacing: -.01em; color: var(--on-court); }
+.status { font-size: 12px; color: var(--on-court-muted); display: inline-flex; align-items: center; gap: 6px; }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status[data-tone="busy"]::before { background: transparent; border: 1.5px solid currentColor; }
+.status[data-tone="bad"]::before { border-radius: 1px; }
+.top .spacer { flex: 1; }
+.btn-top { background: transparent; color: var(--on-court); border: 1px solid var(--on-court); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 500; }
+.btn-top:hover { background: var(--on-court); color: var(--court); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; min-height: 0; }
+.stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; touch-action: none; }
+#canvas { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-select: none; }
+.dot { fill: var(--dot); }
+
+.palette {
+  position: absolute; top: 12px; left: calc(12px + env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+}
+.palette .ptitle { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 2px 6px 4px; }
+.palette button { display: flex; align-items: center; gap: 8px; background: none; border: 0; border-radius: 8px; padding: 6px 8px; font-size: 12.5px; text-align: left; }
+.palette button:hover { background: var(--fg); color: var(--surface); }
+.palette button:hover svg * { fill: var(--surface); stroke: var(--surface); }
+.palette svg { width: 26px; height: 18px; flex: none; }
+.palette svg * { fill: var(--surface-2); stroke: var(--fg); stroke-width: 1.4; }
+.palette svg .solid { fill: var(--fg); stroke: none; }
+
+.zoom {
+  position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.zoom button { background: none; border: 0; border-radius: 7px; min-width: 32px; height: 30px; font-size: 15px; }
+.zoom button:hover { background: var(--fg); color: var(--surface); }
+.zoom .pct { font-size: 12px; min-width: 46px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.zoom .fit { font-size: 12.5px; padding: 0 10px; }
+
+.empty {
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; padding: 24px;
+}
+.empty div { max-width: 360px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; pointer-events: auto; }
+.empty h3 { margin: 0 0 6px; font: 600 17px var(--font-display); }
+.empty p { margin: 0; color: var(--muted); line-height: 1.5; }
+
+.panel {
+  background: var(--surface); border-left: 1px solid var(--line); overflow-y: auto; min-height: 0;
+  padding-block: 18px 28px; padding-left: 18px; padding-right: max(18px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px;
+}
+.panel h2 { margin: 0; font: 600 20px var(--font-display); text-wrap: balance; letter-spacing: -.01em; }
+.panel p { margin: 0; color: var(--muted); line-height: 1.5; }
+.eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pn-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.icon-btn { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; font-size: 16px; line-height: 1; color: var(--muted); }
+.icon-btn:hover { background: var(--surface-2); color: var(--fg); }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label, .field > .flabel { font-size: 12px; font-weight: 600; color: var(--muted); }
+.field textarea, .field select {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; resize: vertical; line-height: 1.45;
+}
+.field textarea:focus, .field select:focus { outline: 2px solid var(--sel); outline-offset: -1px; }
+.field textarea:disabled, .field select:disabled { opacity: .7; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--surface); border-color: var(--fg); }
+.seg button:disabled { cursor: default; opacity: .7; }
+.conns { display: flex; flex-direction: column; gap: 4px; }
+.conn { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+.conn:hover { background: var(--surface-2); border-color: var(--line); }
+.conn .dir { font-family: var(--font-mono); font-size: 11px; color: var(--muted); width: 22px; flex: none; }
+.conn .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conn .via { color: var(--muted); font-size: 12px; margin-left: auto; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 500; }
+.btn:hover { border-color: var(--muted); }
+.btn.danger { color: var(--danger); }
+.progress { height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--ok); }
+.stat { display: flex; justify-content: space-between; font-size: 13px; font-variant-numeric: tabular-nums; }
+.legend { display: grid; gap: 6px; }
+.legend .li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.legend .sw { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid; flex: none; }
+.legend .n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.qlist { display: flex; flex-direction: column; gap: 4px; }
+.qlist button { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+.tips { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.55; font-size: 13px; }
+.tips b { color: var(--fg); font-weight: 600; }
+
+/* SVG */
+.lane-onboarding { --lane: var(--lo); --tint: var(--lo-t); }
+.lane-player { --lane: var(--lp); --tint: var(--lp-t); }
+.lane-business { --lane: var(--lb); --tint: var(--lb-t); }
+.lane-system { --lane: var(--ls); --tint: var(--ls-t); }
+.band { fill: var(--tint); stroke: var(--lane); stroke-width: 1; stroke-dasharray: 3 6; }
+.band-label { font: 700 12px var(--font-display); letter-spacing: .16em; fill: var(--lane); }
+.node { cursor: grab; }
+.node .shape { fill: var(--tint); stroke: var(--lane); stroke-width: 1.5; }
+.node.k-action .shape { fill: var(--surface); }
+.node.k-terminal .shape, .node.k-status .shape { fill: var(--lane); stroke: var(--lane); }
+.node.sel .shape { stroke: var(--sel); stroke-width: 3; }
+.ntext { font: 500 13px var(--font-body); fill: var(--fg); pointer-events: none; }
+.k-terminal .ntext { font-weight: 600; fill: var(--on-strong); }
+.k-status .ntext { font: 500 12px var(--font-mono); fill: var(--on-strong); }
+.ebrow { font: 600 9.5px var(--font-body); letter-spacing: .1em; fill: var(--lane); pointer-events: none; }
+.k-status .ebrow { fill: var(--on-strong); }
+.note-glyph { stroke: var(--lane); stroke-width: 1.4; stroke-linecap: round; pointer-events: none; }
+.k-status .note-glyph, .k-terminal .note-glyph { stroke: var(--on-strong); }
+.badge-ok { fill: var(--ok); }
+.badge-q { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+.badge-mark { stroke: var(--surface); stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.badge-qt { font: 700 11px var(--font-body); fill: var(--fg); }
+.handle { fill: var(--surface); stroke: var(--sel); stroke-width: 2; cursor: crosshair; }
+.handle:hover { fill: var(--sel); }
+.edge .vis { fill: none; stroke: var(--edge); stroke-width: 1.6; }
+.edge.sel .vis { stroke: var(--sel); stroke-width: 2.6; }
+.edge .hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+.edge { cursor: pointer; }
+.elabel rect { fill: var(--surface); stroke: var(--line); }
+.edge.sel .elabel rect { stroke: var(--sel); }
+.elabel text { font: 500 11.5px var(--font-body); fill: var(--muted); }
+.arrow { fill: var(--edge); }
+.arrow-sel { fill: var(--sel); }
+.temp { fill: none; stroke: var(--sel); stroke-width: 2; stroke-dasharray: 6 5; pointer-events: none; }
+
+.toast { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); background: var(--fg); color: var(--surface); padding: 8px 14px; border-radius: 8px; font-size: 13px; }
+.modal { position: fixed; inset: 0; background: rgb(0 0 0 / .4); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.modal > div { background: var(--surface); border-radius: 14px; padding: 18px; width: min(640px, 100%); display: flex; flex-direction: column; gap: 10px; }
+.modal textarea { width: 100%; height: 50vh; font: 12px/1.5 var(--font-mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+
+@media (max-width: 760px) {
+  .main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); max-height: 44vh; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .palette .lbl { display: none; }
+  .palette .ptitle { display: none; }
+  .brand .word { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) { .seg button, .btn, .conn { transition: background-color .12s, border-color .12s; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="word">SERVING</span><span class="doc">App flow</span></div>
+    <span class="status" id="status" data-tone="busy">Connecting…</span>
+    <span class="spacer"></span>
+    <button class="btn-top" id="btnMermaid" type="button">Copy as Mermaid</button>
+  </header>
+  <div class="main">
+    <div class="stage" id="stage">
+      <svg id="canvas" aria-label="Serving flowchart canvas" role="img">
+        <defs>
+          <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle class="dot" cx="1.5" cy="1.5" r="0.8"/></pattern>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="arrow-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrow-sel" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <rect id="grid" x="0" y="0" width="100%" height="100%" fill="url(#dots)"/>
+        <g id="world">
+          <g id="lanes"></g>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <path id="temp" class="temp" d="" />
+        </g>
+      </svg>
+      <div class="palette" id="palette" role="toolbar" aria-label="Add a step">
+        <span class="ptitle">Add</span>
+        <button type="button" data-add="screen" title="Add a screen"><svg viewBox="0 0 26 18"><rect x="1" y="2" width="24" height="14" rx="4"/></svg><span class="lbl">Screen</span></button>
+        <button type="button" data-add="action" title="Add an action"><svg viewBox="0 0 26 18"><rect x="1" y="2" width="24" height="14" rx="1"/></svg><span class="lbl">Action</span></button>
+        <button type="button" data-add="decision" title="Add a decision"><svg viewBox="0 0 26 18"><polygon points="13,1 25,9 13,17 1,9"/></svg><span class="lbl">Decision</span></button>
+        <button type="button" data-add="status" title="Add an order status"><svg viewBox="0 0 26 18"><rect class="solid" x="1" y="3" width="24" height="12" rx="2"/></svg><span class="lbl">Order status</span></button>
+        <button type="button" data-add="terminal" title="Add a start or end"><svg viewBox="0 0 26 18"><rect class="solid" x="1" y="3" width="24" height="12" rx="6"/></svg><span class="lbl">Start / end</span></button>
+      </div>
+      <div class="zoom" aria-label="Zoom">
+        <button type="button" id="zOut" aria-label="Zoom out">−</button>
+        <span class="pct" id="zPct">100%</span>
+        <button type="button" id="zIn" aria-label="Zoom in">+</button>
+        <button type="button" class="fit" id="zFit">Fit</button>
+      </div>
+      <div class="empty" id="empty" hidden><div><h3 id="emptyTitle">No steps yet</h3><p id="emptyText">Add a step from the palette on the left, or ask Claude to draft the flow.</p></div></div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+</div>
+<div class="modal" id="modal" hidden>
+  <div>
+    <div class="pn-head"><strong>Mermaid source</strong><button class="icon-btn" id="modalClose" type="button" aria-label="Close">×</button></div>
+    <p style="margin:0;color:var(--muted)">Copying was blocked here, so the text is selected below. Press Ctrl+C (⌘C on Mac).</p>
+    <textarea id="mmText" readonly></textarea>
+  </div>
+</div>
+
+<script>
+(() => {
+const KINDS = {
+  screen: { label: "Screen", eyebrow: "SCREEN", def: "New screen" },
+  action: { label: "Action", eyebrow: "ACTION", def: "New action" },
+  decision: { label: "Decision", def: "New decision?" },
+  status: { label: "Order status", eyebrow: "ORDER STATUS", def: "newStatus" },
+  terminal: { label: "Start / end", def: "Start" },
+};
+const LANES = {
+  onboarding: { label: "Onboarding" },
+  player: { label: "Player" },
+  business: { label: "Business" },
+  system: { label: "Order status & payments" },
+};
+const REVIEW = { draft: "Draft", agreed: "Agreed", question: "Question" };
+
+const $ = (s) => document.querySelector(s);
+const svg = $("#canvas"), world = $("#world"), lanesG = $("#lanes"), edgesG = $("#edges"), nodesG = $("#nodes"), temp = $("#temp");
+const stage = $("#stage"), panel = $("#panel"), statusEl = $("#status");
+
+let nodes = new Map(), edges = new Map();
+let view = { x: 0, y: 0, k: 0.7 };
+let sel = null;            // { t: "node" | "edge", id }
+let db = null, canWrite = true, dbState = "connecting", lastError = "";
+let loaded = { nodes: false, edges: false }, fitted = false;
+let dragging = null;       // id of node being dragged
+const localPatch = new Map(); // unflushed text edits, kept over incoming snapshots
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const newId = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const kindOf = (n) => (KINDS[n.kind] ? n.kind : "action");
+const laneOf = (n) => (LANES[n.lane] ? n.lane : "player");
+
+function wrap(text, max, maxLines) {
+  const out = [];
+  for (const para of String(text || "").split("\n")) {
+    let line = "";
+    for (let w of para.split(/\s+/).filter(Boolean)) {
+      while (w.length > max) { if (line) { out.push(line); line = ""; } out.push(w.slice(0, max - 1) + "-"); w = w.slice(max - 1); }
+      if (!line) line = w; else if ((line + " " + w).length <= max) line += " " + w; else { out.push(line); line = w; }
+    }
+    out.push(line);
+  }
+  while (out.length > 1 && out[out.length - 1] === "") out.pop();
+  if (out.length > maxLines) { const t = out.slice(0, maxLines); t[maxLines - 1] = t[maxLines - 1].replace(/.$/, "") + "…"; return t; }
+  return out.length ? out : [""];
+}
+
+function layout(n) {
+  const k = kindOf(n);
+  if (k === "decision") { const lines = wrap(n.label, 16, 4); return { k, w: 204, h: Math.max(112, 64 + lines.length * 16), lines, lh: 16 }; }
+  if (k === "terminal") { const lines = wrap(n.label, 21, 3); return { k, w: 172, h: Math.max(46, 22 + lines.length * 17), lines, lh: 17 }; }
+  if (k === "status") { const lines = wrap(n.label, 22, 4); return { k, w: 200, h: 40 + lines.length * 16, lines, lh: 16 }; }
+  const lines = wrap(n.label, 25, 5); return { k, w: 192, h: Math.max(64, 40 + lines.length * 17), lines, lh: 17 };
+}
+
+/* ---------- rendering ---------- */
+function nodeSVG(n) {
+  const L = layout(n), hw = L.w / 2, hh = L.h / 2, k = L.k;
+  const isSel = sel && sel.t === "node" && sel.id === n.id;
+  let shape;
+  if (k === "decision") shape = `<polygon class="shape" points="0,${-hh} ${hw},0 0,${hh} ${-hw},0"/>`;
+  else shape = `<rect class="shape" x="${-hw}" y="${-hh}" width="${L.w}" height="${L.h}" rx="${k === "terminal" ? Math.min(hh, 23) : k === "screen" ? 12 : k === "status" ? 6 : 3}"/>`;
+  let text = "";
+  const eb = KINDS[k].eyebrow;
+  if (eb) {
+    text += `<text class="ebrow" x="${-hw + 14}" y="${-hh + 19}">${eb}</text>`;
+    L.lines.forEach((ln, i) => { text += `<text class="ntext" x="${-hw + 14}" y="${-hh + 38 + i * L.lh}">${esc(ln)}</text>`; });
+  } else {
+    const y0 = -((L.lines.length - 1) * L.lh) / 2 + 4.5;
+    L.lines.forEach((ln, i) => { text += `<text class="ntext" text-anchor="middle" x="0" y="${y0 + i * L.lh}">${esc(ln)}</text>`; });
+  }
+  let extra = "";
+  const bx = k === "decision" ? hw * 0.5 + 4 : hw - 2, by = k === "decision" ? -hh * 0.5 - 4 : -hh + 2;
+  if (n.review === "agreed") extra += `<circle class="badge-ok" cx="${bx}" cy="${by}" r="9"/><path class="badge-mark" d="M${bx - 4},${by} l3,3 l5,-6"/>`;
+  else if (n.review === "question") extra += `<circle class="badge-q" cx="${bx}" cy="${by}" r="9"/><text class="badge-qt" text-anchor="middle" x="${bx}" y="${by + 4}">?</text>`;
+  if (n.note && String(n.note).trim()) {
+    const gx = k === "decision" ? -6 : k === "terminal" ? hw - 26 : hw - 22, gy = k === "decision" ? hh - 26 : k === "terminal" ? -4 : hh - 16;
+    extra += `<path class="note-glyph" d="M${gx},${gy} h10 M${gx},${gy + 4} h10 M${gx},${gy + 8} h6"/>`;
+  }
+  if (isSel && canWrite) {
+    for (const [hx, hy, side] of [[hw, 0, "r"], [0, hh, "b"], [-hw, 0, "l"], [0, -hh, "t"]])
+      extra += `<circle class="handle" data-side="${side}" cx="${hx}" cy="${hy}" r="7"><title>Drag to connect</title></circle>`;
+  }
+  return `<g class="node k-${k} lane-${laneOf(n)}${isSel ? " sel" : ""}" data-id="${esc(n.id)}" transform="translate(${n.x} ${n.y})">${shape}${text}${extra}</g>`;
+}
+
+const NORM = { r: [1, 0], l: [-1, 0], t: [0, -1], b: [0, 1] };
+function anchor(n, L, side) {
+  const [dx, dy] = NORM[side];
+  return [n.x + dx * L.w / 2, n.y + dy * L.h / 2];
+}
+function route(a, b) {
+  const La = layout(a), Lb = layout(b);
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const hgap = Math.abs(dx) - (La.w + Lb.w) / 2, vgap = Math.abs(dy) - (La.h + Lb.h) / 2;
+  const horiz = hgap >= vgap * 0.66;
+  const s1 = horiz ? (dx >= 0 ? "r" : "l") : (dy >= 0 ? "b" : "t");
+  const s2 = horiz ? (dx >= 0 ? "l" : "r") : (dy >= 0 ? "t" : "b");
+  const p1 = anchor(a, La, s1), p2 = anchor(b, Lb, s2);
+  const d = Math.max(28, Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) * 0.4);
+  const c1 = [p1[0] + NORM[s1][0] * d, p1[1] + NORM[s1][1] * d];
+  const c2 = [p2[0] + NORM[s2][0] * d, p2[1] + NORM[s2][1] * d];
+  const mid = [(p1[0] + 3 * c1[0] + 3 * c2[0] + p2[0]) / 8, (p1[1] + 3 * c1[1] + 3 * c2[1] + p2[1]) / 8];
+  return { d: `M${p1[0]},${p1[1]} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`, mid };
+}
+
+function edgeSVG(e) {
+  const a = nodes.get(e.from), b = nodes.get(e.to);
+  if (!a || !b) return "";
+  const r = route(a, b), isSel = sel && sel.t === "edge" && sel.id === e.id;
+  let label = "";
+  if (e.label && String(e.label).trim()) {
+    const t = String(e.label).trim(), w = Math.min(220, t.length * 6.3 + 16);
+    label = `<g class="elabel" transform="translate(${r.mid[0]} ${r.mid[1]})"><rect x="${-w / 2}" y="-10" width="${w}" height="20" rx="10"/><text text-anchor="middle" y="4">${esc(t.length > 34 ? t.slice(0, 33) + "…" : t)}</text></g>`;
+  }
+  return `<g class="edge${isSel ? " sel" : ""}" data-id="${esc(e.id)}"><path class="hit" d="${r.d}"/><path class="vis" d="${r.d}" marker-end="url(#${isSel ? "arrow-sel" : "arrow"})"/>${label}</g>`;
+}
+
+function lanesSVG() {
+  const boxes = {};
+  for (const n of nodes.values()) {
+    const L = layout(n), ln = laneOf(n);
+    const b = boxes[ln] || (boxes[ln] = { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity });
+    b.x1 = Math.min(b.x1, n.x - L.w / 2); b.x2 = Math.max(b.x2, n.x + L.w / 2);
+    b.y1 = Math.min(b.y1, n.y - L.h / 2); b.y2 = Math.max(b.y2, n.y + L.h / 2);
+  }
+  let out = "";
+  for (const ln of Object.keys(LANES)) {
+    const b = boxes[ln]; if (!b) continue;
+    const x = b.x1 - 24, y = b.y1 - 48, w = b.x2 - b.x1 + 48, h = b.y2 - b.y1 + 72;
+    out += `<g class="lane-${ln}"><rect class="band" x="${x}" y="${y}" width="${w}" height="${h}" rx="20"/><text class="band-label" x="${x + 18}" y="${y + 26}">${esc(LANES[ln].label.toUpperCase())}</text></g>`;
+  }
+  return out;
+}
+
+function renderCanvas() {
+  lanesG.innerHTML = lanesSVG();
+  edgesG.innerHTML = [...edges.values()].map(edgeSVG).join("");
+  nodesG.innerHTML = [...nodes.values()].map(nodeSVG).join("");
+  const empty = $("#empty");
+  if (nodes.size === 0 && (db === null ? dbState !== "connecting" : loaded.nodes)) {
+    empty.hidden = false;
+    if (!db) { $("#emptyTitle").textContent = "Can't load the shared flowchart here"; $("#emptyText").textContent = "Open this page on claude.ai while signed in to see and edit the flow. Anything you add in this view stays in this tab only."; }
+    else { $("#emptyTitle").textContent = "No steps yet"; $("#emptyText").textContent = canWrite ? "Add a step from the palette on the left, or ask Claude to draft the flow." : "Nothing has been drawn yet."; }
+  } else empty.hidden = true;
+}
+
+function applyView() {
+  const t = `translate(${view.x} ${view.y}) scale(${view.k})`;
+  world.setAttribute("transform", t);
+  $("#dots").setAttribute("patternTransform", t);
+  $("#zPct").textContent = Math.round(view.k * 100) + "%";
+}
+
+function setStatus() {
+  let text, tone;
+  if (dbState === "connecting") { text = "Connecting…"; tone = "busy"; }
+  else if (!db) { text = "Not saved in this view"; tone = "bad"; }
+  else if (lastError) { text = lastError; tone = "bad"; }
+  else if (!canWrite) { text = "View only"; tone = ""; }
+  else if (pending > 0 || textTimers.size > 0) { text = "Saving…"; tone = "busy"; }
+  else { text = "All changes saved"; tone = "ok"; }
+  statusEl.textContent = text; statusEl.dataset.tone = tone;
+}
+
+/* ---------- panel ---------- */
+let panelKey = null;
+function renderPanel(force) {
+  const key = sel ? sel.t + ":" + sel.id : "overview";
+  if (sel && sel.t === "node" && !nodes.has(sel.id)) { sel = null; return renderPanel(true); }
+  if (sel && sel.t === "edge" && !edges.has(sel.id)) { sel = null; return renderPanel(true); }
+  if (key === panelKey && !force) { refreshFields(); return; }
+  panelKey = key;
+  if (!sel) panel.innerHTML = overviewHTML();
+  else if (sel.t === "node") panel.innerHTML = nodeHTML(nodes.get(sel.id));
+  else panel.innerHTML = edgeHTML(edges.get(sel.id));
+  bindPanel();
+}
+
+function overviewHTML() {
+  const all = [...nodes.values()];
+  const agreed = all.filter((n) => n.review === "agreed").length;
+  const qs = all.filter((n) => n.review === "question");
+  const pct = all.length ? Math.round((agreed / all.length) * 100) : 0;
+  const counts = {}; all.forEach((n) => (counts[laneOf(n)] = (counts[laneOf(n)] || 0) + 1));
+  return `
+  <div><div class="eyebrow">Working draft</div><h2>Serving app flow</h2></div>
+  <p>From first launch to a strung racquet, for players and stringers. Mark a step <b>Agreed</b> once it's settled, or <b>Question</b> when it needs a decision. Claude reads these marks and notes.</p>
+  <div class="field">
+    <div class="stat"><span>${agreed} of ${all.length} steps agreed</span><span>${pct}%</span></div>
+    <div class="progress" aria-hidden="true"><span style="width:${pct}%"></span></div>
+  </div>
+  ${qs.length ? `<div class="field"><span class="flabel">Open questions (${qs.length})</span><div class="qlist">${qs.map((n) => `<button type="button" data-goto="${esc(n.id)}">${esc(n.label)}${n.note ? `<br><span style="color:var(--muted);font-size:12px">${esc(String(n.note).slice(0, 90))}${String(n.note).length > 90 ? "…" : ""}</span>` : ""}</button>`).join("")}</div></div>` : ""}
+  <div class="field"><span class="flabel">Lanes</span><div class="legend">${Object.entries(LANES).map(([k, v]) => `<div class="li lane-${k}"><span class="sw" style="background:var(--tint);border-color:var(--lane)"></span>${esc(v.label)}<span class="n">${counts[k] || 0}</span></div>`).join("")}</div></div>
+  <div class="field"><span class="flabel">How to edit</span>
+  <ul class="tips">
+    <li><b>Drag</b> a step to move it. Drag empty canvas to pan.</li>
+    <li><b>Select</b> a step, then drag one of its blue handles onto another step to connect them, or onto empty canvas to add a new connected step.</li>
+    <li><b>Double-click</b> a step to rename it. Click an arrow to label or reverse it.</li>
+    <li><b>Delete</b> removes the selection. Ctrl + scroll or pinch to zoom.</li>
+  </ul></div>`;
+}
+
+function connList(n) {
+  const rows = [];
+  for (const e of edges.values()) {
+    if (e.from === n.id && nodes.has(e.to)) rows.push({ e, dir: "→", other: nodes.get(e.to) });
+    if (e.to === n.id && nodes.has(e.from)) rows.push({ e, dir: "←", other: nodes.get(e.from) });
+  }
+  if (!rows.length) return `<p style="font-size:13px">No connections yet.</p>`;
+  return rows.map((r) => `<button type="button" class="conn" data-edge="${esc(r.e.id)}"><span class="dir">${r.dir}</span><span class="who">${esc(r.other.label)}</span>${r.e.label ? `<span class="via">${esc(r.e.label)}</span>` : ""}</button>`).join("");
+}
+
+function nodeHTML(n) {
+  const dis = canWrite ? "" : " disabled";
+  const k = kindOf(n), review = REVIEW[n.review] ? n.review : "draft";
+  return `
+  <div class="pn-head"><span class="eyebrow">${esc(KINDS[k].label)} · ${esc(LANES[laneOf(n)].label)}</span><button type="button" class="icon-btn" id="pnClose" aria-label="Back to overview">×</button></div>
+  <div class="field"><label for="fLabel">Label</label><textarea id="fLabel" rows="2"${dis}>${esc(n.label)}</textarea></div>
+  <div class="field"><span class="flabel">Review</span><div class="seg review" id="fReview">${Object.entries(REVIEW).map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === review}"${dis}>${l}</button>`).join("")}</div></div>
+  <div class="field"><label for="fNote">Notes</label><textarea id="fNote" rows="4" placeholder="Details, rules, or a question for Claude"${dis}>${esc(n.note || "")}</textarea></div>
+  <div class="field"><span class="flabel">Shape</span><div class="seg" id="fKind">${Object.entries(KINDS).map(([v, o]) => `<button type="button" data-v="${v}" aria-pressed="${v === k}"${dis}>${o.label}</button>`).join("")}</div></div>
+  <div class="field"><label for="fLane">Lane</label><select id="fLane"${dis}>${Object.entries(LANES).map(([v, o]) => `<option value="${v}"${v === laneOf(n) ? " selected" : ""}>${o.label}</option>`).join("")}</select></div>
+  <div class="field"><span class="flabel">Connections</span><div class="conns">${connList(n)}</div></div>
+  ${canWrite ? `<div class="row"><button type="button" class="btn danger" id="fDelete">Delete step</button></div>` : ""}`;
+}
+
+function edgeHTML(e) {
+  const a = nodes.get(e.from), b = nodes.get(e.to), dis = canWrite ? "" : " disabled";
+  return `
+  <div class="pn-head"><span class="eyebrow">Connection</span><button type="button" class="icon-btn" id="pnClose" aria-label="Back to overview">×</button></div>
+  <div class="conns">
+    <button type="button" class="conn" data-goto="${esc(e.from)}"><span class="dir">from</span><span class="who">${esc(a ? a.label : "Missing step")}</span></button>
+    <button type="button" class="conn" data-goto="${esc(e.to)}"><span class="dir">to</span><span class="who">${esc(b ? b.label : "Missing step")}</span></button>
+  </div>
+  <div class="field"><label for="eLabel">Label</label><textarea id="eLabel" rows="2" placeholder="e.g. Yes, Push: new request"${dis}>${esc(e.label || "")}</textarea></div>
+  ${canWrite ? `<div class="row"><button type="button" class="btn" id="eReverse">Reverse direction</button><button type="button" class="btn danger" id="eDelete">Delete connection</button></div>` : ""}`;
+}
+
+function refreshFields() {
+  if (!sel) { panel.innerHTML = overviewHTML(); bindPanel(); return; }
+  const set = (id, v) => { const el = document.getElementById(id); if (el && document.activeElement !== el && el.value !== v) el.value = v; };
+  if (sel.t === "node") {
+    const n = nodes.get(sel.id); if (!n) return;
+    set("fLabel", n.label || ""); set("fNote", n.note || ""); set("fLane", laneOf(n));
+    document.querySelectorAll("#fReview button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === (n.review || "draft")));
+    document.querySelectorAll("#fKind button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === kindOf(n)));
+    const c = panel.querySelector(".conns"); if (c) c.innerHTML = connList(n);
+  } else {
+    const e = edges.get(sel.id); if (e) set("eLabel", e.label || "");
+  }
+}
+
+function bindPanel() {
+  panel.querySelector("#pnClose")?.addEventListener("click", () => select(null));
+  panel.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => { select({ t: "node", id: b.dataset.goto }); centerOn(b.dataset.goto); }));
+  panel.querySelectorAll("[data-edge]").forEach((b) => b.addEventListener("click", () => select({ t: "edge", id: b.dataset.edge })));
+  if (!sel || !canWrite) return;
+  const id = sel.id;
+  if (sel.t === "node") {
+    const lab = $("#fLabel"), note = $("#fNote");
+    lab.addEventListener("input", () => editText("nodes", id, "label", lab.value));
+    note.addEventListener("input", () => editText("nodes", id, "note", note.value));
+    lab.addEventListener("blur", flushText); note.addEventListener("blur", flushText);
+    lab.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); lab.blur(); } });
+    $("#fLane").addEventListener("change", (ev) => updateNode(id, { lane: ev.target.value }));
+    panel.querySelectorAll("#fReview button").forEach((b) => b.addEventListener("click", () => updateNode(id, { review: b.dataset.v })));
+    panel.querySelectorAll("#fKind button").forEach((b) => b.addEventListener("click", () => updateNode(id, { kind: b.dataset.v })));
+    $("#fDelete").addEventListener("click", () => deleteNode(id));
+  } else {
+    const lab = $("#eLabel");
+    lab.addEventListener("input", () => editText("edges", id, "label", lab.value));
+    lab.addEventListener("blur", flushText);
+    lab.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); lab.blur(); } });
+    $("#eReverse").addEventListener("click", () => { const e = edges.get(id); if (e) updateEdge(id, { from: e.to, to: e.from }); });
+    $("#eDelete").addEventListener("click", () => deleteEdge(id));
+  }
+}
+
+function select(s) {
+  flushText();
+  sel = s;
+  renderCanvas(); renderPanel();
+}
+
+/* ---------- persistence ---------- */
+let pending = 0;
+const queues = new Map();
+function persist(path, fn) {
+  if (!db) return;
+  pending++; setStatus();
+  const prev = queues.get(path) || Promise.resolve();
+  const p = prev.then(fn).then(() => { lastError = ""; }).catch((err) => {
+    const code = err && err.code;
+    if (code === "invalid_argument" && !canWrite) return;
+    if (code === "invalid_argument") { canWrite = false; lastError = "View only — your edits can't be saved"; renderPanel(true); renderCanvas(); updatePalette(); }
+    else if (code === "quota_exceeded") lastError = "Storage is full — delete some steps";
+    else lastError = "Couldn't save the last change";
+    console.error(err);
+  }).finally(() => { pending--; if (queues.get(path) === p) queues.delete(path); setStatus(); });
+  queues.set(path, p);
+}
+const col = (c) => db.collection(c);
+
+const textTimers = new Map();
+function editText(c, id, field, value) {
+  const map = c === "nodes" ? nodes : edges, obj = map.get(id); if (!obj) return;
+  obj[field] = value;
+  const key = c + "/" + id;
+  const lp = localPatch.get(key) || {}; lp[field] = value; localPatch.set(key, lp);
+  renderCanvas();
+  clearTimeout(textTimers.get(key)?.t);
+  textTimers.set(key, { t: setTimeout(() => flushKey(key), 600) });
+  setStatus();
+}
+function flushKey(key) {
+  const tm = textTimers.get(key); if (tm) clearTimeout(tm.t);
+  textTimers.delete(key);
+  const patch = localPatch.get(key); if (!patch) return;
+  const [c, id] = key.split("/");
+  persist(key, async () => { await col(c).doc(id).update(patch); if (localPatch.get(key) === patch) localPatch.delete(key); });
+  if (!db) localPatch.delete(key);
+  setStatus();
+}
+function flushText() { for (const key of [...textTimers.keys()]) flushKey(key); }
+
+function updateNode(id, patch) {
+  const n = nodes.get(id); if (!n || !canWrite) return;
+  Object.assign(n, patch);
+  renderCanvas(); renderPanel();
+  persist("nodes/" + id, () => col("nodes").doc(id).update(patch));
+}
+function createNode(data) {
+  const id = newId("n");
+  const n = { label: "", kind: "action", lane: "player", x: 0, y: 0, note: "", review: "draft", ...data };
+  nodes.set(id, { id, ...n });
+  persist("nodes/" + id, () => col("nodes").doc(id).set(n));
+  return id;
+}
+function deleteNode(id) {
+  if (!canWrite) return;
+  for (const e of [...edges.values()]) if (e.from === id || e.to === id) deleteEdge(e.id, true);
+  nodes.delete(id);
+  persist("nodes/" + id, () => col("nodes").doc(id).delete());
+  if (sel && sel.id === id) sel = null;
+  renderCanvas(); renderPanel(true);
+}
+function createEdge(from, to, label = "") {
+  if (from === to) return null;
+  for (const e of edges.values()) if (e.from === from && e.to === to) return e.id;
+  const id = newId("e"), e = { from, to, label };
+  edges.set(id, { id, ...e });
+  persist("edges/" + id, () => col("edges").doc(id).set(e));
+  return id;
+}
+function updateEdge(id, patch) {
+  const e = edges.get(id); if (!e || !canWrite) return;
+  Object.assign(e, patch);
+  renderCanvas(); renderPanel(true);
+  persist("edges/" + id, () => col("edges").doc(id).update(patch));
+}
+function deleteEdge(id, quiet) {
+  if (!canWrite) return;
+  edges.delete(id);
+  persist("edges/" + id, () => col("edges").doc(id).delete());
+  if (sel && sel.t === "edge" && sel.id === id) sel = null;
+  if (!quiet) { renderCanvas(); renderPanel(true); }
+}
+
+function applySnapshot(c, snap) {
+  const map = new Map();
+  for (const d of snap.docs) {
+    const obj = { id: d.id, ...d.data() };
+    const lp = localPatch.get(c + "/" + d.id); if (lp) Object.assign(obj, lp);
+    if (c === "nodes" && dragging === d.id) { const cur = nodes.get(d.id); if (cur) { obj.x = cur.x; obj.y = cur.y; } }
+    if (c === "nodes") { obj.x = Number(obj.x) || 0; obj.y = Number(obj.y) || 0; }
+    map.set(d.id, obj);
+  }
+  if (c === "nodes") nodes = map; else edges = map;
+  loaded[c] = true;
+  if (!fitted && loaded.nodes && nodes.size) { fitted = true; fit(); }
+  renderCanvas(); renderPanel();
+  setStatus();
+}
+
+async function connect() {
+  const cl = window.claude;
+  if (!cl || typeof cl.use !== "function") { dbState = "none"; setStatus(); renderCanvas(); renderPanel(true); return; }
+  try {
+    const [d, u] = await Promise.all([cl.use("db"), cl.use("user").catch(() => null)]);
+    db = d;
+    if (u && typeof u.can === "function") { try { const w = await u.can("data.write"); if (w === false) canWrite = false; } catch {} }
+  } catch { db = null; }
+  dbState = db ? "ready" : "none";
+  if (!db) canWrite = true; // local scratch editing
+  updatePalette(); setStatus();
+  if (!db) { renderCanvas(); renderPanel(true); return; }
+  const onErr = (e) => { lastError = "Lost connection to the shared flowchart"; setStatus(); console.error(e); };
+  col("nodes").onSnapshot((s) => applySnapshot("nodes", s), onErr);
+  col("edges").onSnapshot((s) => applySnapshot("edges", s), onErr);
+}
+function updatePalette() { $("#palette").hidden = !canWrite; }
+
+/* ---------- view ---------- */
+function stageRect() { return svg.getBoundingClientRect(); }
+function toWorld(cx, cy) { const r = stageRect(); return [(cx - r.left - view.x) / view.k, (cy - r.top - view.y) / view.k]; }
+function zoomAt(cx, cy, f) {
+  const r = stageRect(), px = cx - r.left, py = cy - r.top;
+  const k = Math.min(2, Math.max(0.15, view.k * f));
+  view.x = px - ((px - view.x) / view.k) * k; view.y = py - ((py - view.y) / view.k) * k; view.k = k;
+  applyView();
+}
+function fit() {
+  if (!nodes.size) return;
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (const n of nodes.values()) { const L = layout(n); x1 = Math.min(x1, n.x - L.w / 2); x2 = Math.max(x2, n.x + L.w / 2); y1 = Math.min(y1, n.y - L.h / 2 - 48); y2 = Math.max(y2, n.y + L.h / 2 + 24); }
+  const r = stageRect(), padL = r.width > 600 ? 150 : 70;
+  const k = Math.min(1.1, Math.max(0.15, Math.min((r.width - padL - 30) / (x2 - x1), (r.height - 70) / (y2 - y1))));
+  view.k = k; view.x = padL + (r.width - padL - 30 - (x2 - x1) * k) / 2 - x1 * k; view.y = (r.height - (y2 - y1) * k) / 2 - y1 * k;
+  applyView();
+}
+function centerOn(id) {
+  const n = nodes.get(id); if (!n) return;
+  const r = stageRect(); if (view.k < 0.6) view.k = 0.8;
+  view.x = r.width / 2 - n.x * view.k; view.y = r.height / 2 - n.y * view.k; applyView();
+}
+
+/* ---------- pointer interaction ---------- */
+const pointers = new Map();
+let mode = null, start = null, moved = false, pinch = null, lastTap = { id: null, t: 0 };
+const snap = (v) => Math.round(v / 10) * 10;
+
+svg.addEventListener("pointerdown", (e) => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, view: { ...view } };
+    if (mode === "drag" && dragging) { const n = nodes.get(dragging); if (n) { n.x = start.nx; n.y = start.ny; } dragging = null; }
+    mode = "pinch"; temp.setAttribute("d", ""); renderCanvas();
+    return;
+  }
+  svg.setPointerCapture(e.pointerId);
+  moved = false;
+  const handle = e.target.closest(".handle"), nodeEl = e.target.closest(".node"), edgeEl = e.target.closest(".edge");
+  if (handle && nodeEl && canWrite) {
+    mode = "connect"; start = { id: nodeEl.dataset.id, side: handle.dataset.side };
+  } else if (nodeEl) {
+    const id = nodeEl.dataset.id, now = Date.now();
+    if (lastTap.id === id && now - lastTap.t < 380) { lastTap = { id: null, t: 0 }; mode = null; if (!(sel && sel.id === id)) select({ t: "node", id }); setTimeout(() => { const f = $("#fLabel"); if (f) { f.focus(); f.select(); } }, 0); return; }
+    lastTap = { id, t: now };
+    if (!(sel && sel.t === "node" && sel.id === id)) select({ t: "node", id });
+    const n = nodes.get(id), [wx, wy] = toWorld(e.clientX, e.clientY);
+    mode = canWrite ? "drag" : "pan"; start = { id, wx, wy, nx: n.x, ny: n.y, cx: e.clientX, cy: e.clientY, vx: view.x, vy: view.y };
+  } else if (edgeEl) {
+    select({ t: "edge", id: edgeEl.dataset.id }); mode = "pan"; start = { cx: e.clientX, cy: e.clientY, vx: view.x, vy: view.y };
+  } else {
+    mode = "pan"; start = { cx: e.clientX, cy: e.clientY, vx: view.x, vy: view.y, blank: true };
+  }
+});
+
+svg.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (mode === "pinch" && pointers.size === 2) {
+    const [a, b] = [...pointers.values()], r = stageRect();
+    const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const k = Math.min(2, Math.max(0.15, pinch.view.k * (d / pinch.d)));
+    const wx = (pinch.mx - r.left - pinch.view.x) / pinch.view.k, wy = (pinch.my - r.top - pinch.view.y) / pinch.view.k;
+    view = { k, x: mx - r.left - wx * k, y: my - r.top - wy * k }; applyView();
+    return;
+  }
+  if (mode === "pan") {
+    const dx = e.clientX - start.cx, dy = e.clientY - start.cy;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    view.x = start.vx + dx; view.y = start.vy + dy; applyView();
+  } else if (mode === "drag") {
+    const [wx, wy] = toWorld(e.clientX, e.clientY), n = nodes.get(start.id); if (!n) return;
+    if (!moved && Math.abs(e.clientX - start.cx) + Math.abs(e.clientY - start.cy) < 4) return;
+    moved = true; dragging = start.id;
+    n.x = start.nx + (wx - start.wx); n.y = start.ny + (wy - start.wy);
+    renderCanvas();
+  } else if (mode === "connect") {
+    const n = nodes.get(start.id); if (!n) return;
+    const [ax, ay] = anchor(n, layout(n), start.side), [wx, wy] = toWorld(e.clientX, e.clientY);
+    moved = true;
+    temp.setAttribute("d", `M${ax},${ay} L${wx},${wy}`);
+  }
+});
+
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if (mode === "pinch") { if (pointers.size === 0) mode = null; return; }
+  if (mode === "pan" && start && start.blank && !moved) select(null);
+  if (mode === "drag" && moved) {
+    const n = nodes.get(start.id);
+    dragging = null;
+    if (n) { n.x = snap(n.x); n.y = snap(n.y); renderCanvas(); const id = n.id, x = n.x, y = n.y; persist("nodes/" + id, () => col("nodes").doc(id).update({ x, y })); }
+  }
+  if (mode === "connect") {
+    temp.setAttribute("d", "");
+    if (moved) {
+      const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".node");
+      if (hit && hit.dataset.id !== start.id) {
+        const eid = createEdge(start.id, hit.dataset.id); if (eid) select({ t: "edge", id: eid });
+      } else if (!hit) {
+        const src = nodes.get(start.id), [wx, wy] = toWorld(e.clientX, e.clientY);
+        const nid = createNode({ label: KINDS.action.def, kind: "action", lane: src ? laneOf(src) : "player", x: snap(wx), y: snap(wy) });
+        createEdge(start.id, nid);
+        select({ t: "node", id: nid });
+        setTimeout(() => { const f = $("#fLabel"); if (f) { f.focus(); f.select(); } }, 0);
+      }
+    }
+  }
+  mode = null; start = null;
+}
+svg.addEventListener("pointerup", endPointer);
+svg.addEventListener("pointercancel", endPointer);
+
+svg.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
+  else { view.x -= e.deltaX; view.y -= e.deltaY; applyView(); }
+}, { passive: false });
+
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "textarea" || tag === "input" || tag === "select") { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.key === "Escape") { if (!$("#modal").hidden) $("#modal").hidden = true; else select(null); }
+  if ((e.key === "Delete" || e.key === "Backspace") && sel && canWrite) { e.preventDefault(); sel.t === "node" ? deleteNode(sel.id) : deleteEdge(sel.id); }
+});
+
+$("#zIn").addEventListener("click", () => { const r = stageRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.2); });
+$("#zOut").addEventListener("click", () => { const r = stageRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.2); });
+$("#zFit").addEventListener("click", fit);
+
+$("#palette").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-add]"); if (!b || !canWrite) return;
+  const kind = b.dataset.add, r = stageRect();
+  const [wx, wy] = toWorld(r.left + r.width / 2, r.top + r.height / 2);
+  const cur = sel && sel.t === "node" ? nodes.get(sel.id) : null;
+  const lane = kind === "status" ? "system" : cur ? laneOf(cur) : "player";
+  const id = createNode({ label: KINDS[kind].def, kind, lane, x: snap(wx + (Math.random() * 40 - 20)), y: snap(wy + (Math.random() * 40 - 20)) });
+  select({ t: "node", id });
+  setTimeout(() => { const f = $("#fLabel"); if (f) { f.focus(); f.select(); } }, 0);
+});
+
+/* ---------- Mermaid export ---------- */
+function mermaid() {
+  const q = (s) => '"' + String(s || "").replace(/"/g, "#quot;").replace(/\n/g, "<br/>") + '"';
+  const shape = (n) => { const l = q(n.label); switch (kindOf(n)) { case "decision": return `{${l}}`; case "terminal": return `([${l}])`; case "status": return `[[${l}]]`; case "screen": return `(${l})`; default: return `[${l}]`; } };
+  const ids = new Map(); let i = 0; for (const n of nodes.values()) ids.set(n.id, "s" + (++i));
+  let out = "flowchart LR\n";
+  for (const [ln, v] of Object.entries(LANES)) {
+    const list = [...nodes.values()].filter((n) => laneOf(n) === ln).sort((a, b) => a.x - b.x || a.y - b.y);
+    if (!list.length) continue;
+    out += `  subgraph ${ln}[${q(v.label)}]\n` + list.map((n) => `    ${ids.get(n.id)}${shape(n)}`).join("\n") + "\n  end\n";
+  }
+  for (const e of edges.values()) {
+    if (!ids.has(e.from) || !ids.has(e.to)) continue;
+    out += e.label ? `  ${ids.get(e.from)} -->|${q(e.label)}| ${ids.get(e.to)}\n` : `  ${ids.get(e.from)} --> ${ids.get(e.to)}\n`;
+  }
+  return out;
+}
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2200); }
+$("#btnMermaid").addEventListener("click", () => {
+  const text = mermaid();
+  const fallback = () => { $("#mmText").value = text; $("#modal").hidden = false; const ta = $("#mmText"); ta.focus(); ta.select(); };
+  try { navigator.clipboard.writeText(text).then(() => toast("Copied Mermaid source to the clipboard"), fallback); } catch { fallback(); }
+});
+$("#modalClose").addEventListener("click", () => ($("#modal").hidden = true));
+$("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") $("#modal").hidden = true; });
+
+window.addEventListener("resize", () => { if (!fitted && nodes.size) fit(); });
+
+applyView(); setStatus(); renderCanvas(); renderPanel(true);
+connect();
+})();
+</script>
