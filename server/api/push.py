@@ -105,7 +105,9 @@ def order_acknowledged(order):
         order.player,
         event="order.acknowledged",
         title="Pick-up time proposed",
-        body=f"{order.business_name} can have it ready {when:%a, %b %-d at %-I:%M %p}."
+        # %-d / %-I aren't supported by Windows' strftime, so unpad by hand.
+        body=f"{order.business_name} can have it ready "
+        f"{when:%a, %b} {when.day} at {when.hour % 12 or 12}:{when:%M %p}."
         if when
         else f"{order.business_name} responded to your request.",
         order=order,

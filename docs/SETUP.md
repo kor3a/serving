@@ -134,43 +134,44 @@ In DEBUG the same code also comes back as `dev_code` in the API response.
 
 ---
 
-## Part 3 — Move to Supabase Postgres
+## Part 3 — Move to Neon Postgres
 
 SQLite is fine for one developer. Switch to Postgres when you want the data to
 outlive your laptop, or before you invite anyone else in.
 
-### 3.1 Create the project
+Neon only provides the database here. Sign-in stays in Django (Part 4), so
+there is no Neon Auth or other auth provider to set up.
 
-1. https://supabase.com/dashboard → **New project**.
-2. Pick a region near your users, and save the database password — the
-   dashboard shows it exactly once.
-3. Wait for provisioning (~2 minutes).
+### 3.1 Link the project
 
-### 3.2 Get the connection string
-
-**Project Settings → Database → Connection string → URI.**
-
-Supabase gives you three; use the one that matches how you run Django:
-
-| Mode | Port | Use it when |
-| --- | --- | --- |
-| Direct connection | 5432 | Long-lived server (a VM, Fly.io, Render) |
-| Session pooler | 5432 | Same, behind IPv4. The safe default. |
-| Transaction pooler | 6543 | Serverless / autoscaling with many short-lived processes |
-
-Django holds connections open, so **session pooler** is the right default.
-Don't use the transaction pooler with `DB_CONN_MAX_AGE` — set it to `0` if
-you must.
-
-Put it in `server/.env`, replacing `[YOUR-PASSWORD]`:
+`server/neon.ts` declares Postgres as the only service. The link to the Neon
+project lives in `server/.neon`, which is gitignored, so a fresh clone links
+it once. You need Node.js for the CLI:
 
 ```sh
-DATABASE_URL=postgresql://postgres.abcdefghijkl:YOUR-PASSWORD@aws-0-us-west-1.pooler.supabase.com:5432/postgres
-DB_SSL_REQUIRE=true
+npm i -g neon@latest
+cd server
+npm install            # @neon/config, which neon.ts imports
+neon login             # opens a browser sign-in
+neon init -y --no-config --org-id org-fancy-night-32625238 \
+    --project-id silent-river-47185799 --branch production
+neon deploy            # applies neon.ts and pulls env vars into .env
 ```
 
-If your password contains `@`, `/`, `#` or `?`, percent-encode it
-(`@` → `%40`), or the URL won't parse.
+### 3.2 The two connection strings
+
+`neon deploy` (and `neon env pull`) writes both into `server/.env`:
+
+| Variable | Host | Used for |
+| --- | --- | --- |
+| `DATABASE_URL` | `ep-…-pooler…neon.tech` | Everything the running app does |
+| `DATABASE_URL_UNPOOLED` | `ep-…neon.tech` | `migrate`, `test`, `dbshell` — picked automatically |
+
+The pooled host runs PgBouncer in transaction mode, so `settings.py` turns off
+server-side cursors whenever it's in use. Schema changes go over the direct
+host. Neon computes suspend after five idle minutes, so persistent connections
+are health-checked before reuse; the first request after a pause takes a few
+hundred milliseconds longer.
 
 ### 3.3 Migrate
 
@@ -180,10 +181,16 @@ python manage.py seed_demo
 python manage.py createsuperuser
 ```
 
-Then check **Table Editor** in Supabase — you should see `api_user`,
+Then check **Tables** in the Neon console — you should see `api_user`,
 `api_business`, `api_order` and friends.
 
-### About `docs/supabase_schema.sql`
+### Branches
+
+`neon checkout dev --create` makes a copy-on-write branch of the database
+(it expires after 7 days, per `neon.ts`) and points `.env` at it — handy for
+trying a migration against real data before running it on `production`.
+
+### About `docs/postgres_schema.sql`
 
 That file documents the target schema and is useful for reading the data model
 or hand-provisioning. **Don't run it against the same database Django
@@ -194,9 +201,8 @@ as reference.
 ### Row Level Security
 
 Django connects as the Postgres owner and enforces access in the API layer, so
-RLS is not required. If you later add Supabase client libraries reading these
-tables directly, turn RLS on then — the API keys Supabase issues are meant to
-be paired with it.
+RLS is not required. If you later let clients read these tables directly
+(Neon's Data API, for instance), turn RLS on then.
 
 ---
 
@@ -306,7 +312,8 @@ Any host that runs Django works. Minimum checklist:
 DJANGO_DEBUG=false
 DJANGO_SECRET_KEY=<50+ random characters>
 DJANGO_ALLOWED_HOSTS=api.yourdomain.com
-DATABASE_URL=<Supabase session pooler URI>
+DATABASE_URL=<Neon pooled URI>
+DATABASE_URL_UNPOOLED=<Neon direct URI>
 OAUTH_ALLOW_UNVERIFIED_TOKENS=false
 ```
 

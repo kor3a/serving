@@ -108,7 +108,8 @@ pick-ups by day), Storefront (merchandise, service pricing, public profile).
 ## The backend
 
 The Django + DRF service that the app talks to lives in `server/`. It runs on
-SQLite out of the box and on Supabase Postgres with one environment variable.
+SQLite out of the box and on Neon Postgres once `neon deploy` fills in its
+connection strings.
 
 Needs **Python 3.10+** (macOS ships 3.9, which can't install Django 5.2 —
 `brew install python@3.13`).
@@ -124,10 +125,10 @@ Then set `AppConfig.useMockBackend = false` in
 `Serving/App/AppEnvironment.swift` and run the app in the simulator — sign in
 as `player@serving.app` / `serving123`.
 
-**docs/SETUP.md** is the full walkthrough: Supabase provisioning, Django Auth,
+**docs/SETUP.md** is the full walkthrough: Neon provisioning, Django Auth,
 Apple/Google sign-in, Stripe, Twilio, APNs and deployment.
 **docs/API_CONTRACT.md** specifies every route and payload.
-**docs/supabase_schema.sql** documents the Postgres schema (reference —
+**docs/postgres_schema.sql** documents the Postgres schema (reference —
 Django's migrations are what actually create the tables).
 
 Two commands keep the halves in step:
