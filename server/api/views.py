@@ -344,7 +344,7 @@ def business_search(request):
         )
 
     # Cheap bounding box first, exact distance second. Swap in PostGIS
-    # (see docs/supabase_schema.sql) once the table gets large.
+    # (see docs/postgres_schema.sql) once the table gets large.
     degrees = radius_m / 111_000
     businesses = businesses.filter(
         latitude__isnull=False,
