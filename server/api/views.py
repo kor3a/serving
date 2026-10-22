@@ -505,9 +505,13 @@ def business_earnings(request, business_id):
             strings=Sum("strings_subtotal"),
             labor=Sum("labor_subtotal"),
             byos=Sum("bring_your_own_string_fee"),
+            commission=Sum("stringer_commission"),
         )
         return money(
-            (totals["strings"] or 0) + (totals["labor"] or 0) + (totals["byos"] or 0)
+            (totals["strings"] or 0)
+            + (totals["labor"] or 0)
+            + (totals["byos"] or 0)
+            - (totals["commission"] or 0)
         )
 
     # Money earned but not yet paid out: work that is paid for and underway.

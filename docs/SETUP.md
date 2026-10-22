@@ -263,7 +263,9 @@ checkout, so there's no authorize/capture pair to manage.
 For the money to reach stringers rather than your own balance, set up **Stripe
 Connect**: onboard each business, store the connected account id on
 `Business.stripe_account_id`, and `payments.py` will route the charge with
-`application_fee_amount` set to Serving's service fee.
+`application_fee_amount` set to Serving's share: the player's $1.99 service
+fee plus the 8% stringer commission. Change them with `PLAYER_SERVICE_FEE` and
+`STRINGER_COMMISSION_RATE` (and the matching constants in `PricingEngine.swift`).
 
 Apple Pay needs the Stripe iOS SDK on the client to produce a payment method
 id; pass it as `payment_method_id` in the accept-pickup call.

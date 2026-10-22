@@ -52,7 +52,7 @@ ORDER_KEYS = {
 RACQUET_KEYS = {"id", "sport", "model", "string_selection", "main_tension",
                 "cross_tension", "notes"}
 PRICING_KEYS = {"strings_subtotal", "labor_subtotal", "bring_your_own_string_fee",
-                "service_fee", "tax"}
+                "service_fee", "stringer_commission", "tax"}
 PAYMENT_KEYS = {"method", "state", "payment_intent_id", "charged_at", "last4"}
 EARNINGS_KEYS = {"pending_payout", "paid_out_this_month", "gross_this_week",
                  "completed_orders_this_month", "next_payout_date", "payout_status"}
@@ -382,8 +382,23 @@ class ServingFlowTests(APITestCase):
         self.assertEqual(Decimal(str(pricing["strings_subtotal"])), Decimal("24.00"))
         self.assertEqual(Decimal(str(pricing["labor_subtotal"])), Decimal("22.00"))
         self.assertEqual(Decimal(str(pricing["bring_your_own_string_fee"])), Decimal("0.00"))
-        # 6% of 46.00
-        self.assertEqual(Decimal(str(pricing["service_fee"])), Decimal("2.76"))
+        # Flat fee for the player; 8% of the stringer's 46.00 for Serving.
+        self.assertEqual(Decimal(str(pricing["service_fee"])), Decimal("1.99"))
+        self.assertEqual(Decimal(str(pricing["stringer_commission"])), Decimal("3.68"))
+
+    def test_stripe_keeps_the_fee_and_commission_and_pays_out_the_rest(self):
+        from . import payments
+
+        self.business.stripe_account_id = "acct_test"
+        self.business.save()
+        order = Order.objects.get(pk=self.make_order()["id"])
+
+        split = payments._connect_kwargs(order)
+        # 1.99 service fee + 3.68 commission
+        self.assertEqual(split["application_fee_amount"], 567)
+        self.assertEqual(split["transfer_data"], {"destination": "acct_test"})
+        # The stringer earns their 46.00 less commission; tax rides on top.
+        self.assertEqual(order.payout_amount, Decimal("42.32"))
 
     def test_byos_charges_the_install_fee_and_no_string(self):
         order = self.make_order(byos=True)
@@ -713,8 +728,9 @@ class ServingFlowTests(APITestCase):
         response = self.client.get(f"/v1/businesses/{self.business.id}/earnings/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(set(response.data), EARNINGS_KEYS)
-        # Payout excludes the platform fee: 24.00 string + 22.00 labor.
-        self.assertEqual(Decimal(str(response.data["pending_payout"])), Decimal("46.00"))
+        # 24.00 string + 22.00 labor, less the 8% commission (3.68). The
+        # player's service fee is never part of the payout.
+        self.assertEqual(Decimal(str(response.data["pending_payout"])), Decimal("42.32"))
 
     def test_device_token_registration(self):
         self.as_player()

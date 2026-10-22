@@ -220,14 +220,20 @@ struct BusinessOrderDetailView: View {
                     if order.pricing.bringYourOwnStringFee > 0 {
                         LabeledRow(label: "BYOS install fee", value: order.pricing.bringYourOwnStringFee.currencyString, isMonospaced: true)
                     }
-                    LabeledRow(label: "Serving service fee", value: "−\(order.pricing.serviceFee.currencyString)", isMonospaced: true)
+                    LabeledRow(label: "Serving commission", value: "−\(order.pricing.stringerCommission.currencyString)", isMonospaced: true)
                     Divider().overlay(Theme.separator)
                     LabeledRow(
                         label: "Your payout",
-                        value: payout(for: order).currencyString,
+                        value: order.pricing.payoutAmount.currencyString,
                         valueColor: Theme.accent,
                         isMonospaced: true
                     )
+                    if order.pricing.tax > 0 {
+                        Text("Plus \(order.pricing.tax.currencyString) sales tax collected for you.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     LabeledRow(
                         label: "Charged to player",
                         value: order.payment.state.label,
@@ -239,10 +245,6 @@ struct BusinessOrderDetailView: View {
     }
 
     // MARK: - Helpers
-
-    private func payout(for order: Order) -> Decimal {
-        order.pricing.stringsSubtotal + order.pricing.laborSubtotal + order.pricing.bringYourOwnStringFee
-    }
 
     private func setStatus(_ status: OrderStatus) async {
         isUpdatingStatus = true

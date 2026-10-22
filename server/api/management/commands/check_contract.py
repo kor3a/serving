@@ -219,7 +219,8 @@ class Command(BaseCommand):
                     business_note="Note",
                     strings_subtotal=Decimal("24.00"),
                     labor_subtotal=Decimal("22.00"),
-                    service_fee=Decimal("2.76"),
+                    service_fee=Decimal("1.99"),
+                    stringer_commission=Decimal("3.68"),
                     tax=Decimal("2.19"),
                 )
                 OrderRacquet.objects.create(

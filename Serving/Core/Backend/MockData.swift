@@ -356,7 +356,8 @@ enum MockData {
                 stringsSubtotal: alu.price,
                 laborSubtotal: shop.services[0].laborPrice,
                 bringYourOwnStringFee: 0,
-                serviceFee: 2.99,
+                serviceFee: PricingEngine.playerServiceFee,
+                stringerCommission: PricingEngine.stringerCommission(on: alu.price + shop.services[0].laborPrice),
                 tax: 4.24
             ),
             payment: PaymentRecord(
@@ -410,7 +411,10 @@ enum MockData {
                 stringsSubtotal: nxt.price,
                 laborSubtotal: shop.services[0].laborPrice * 2,
                 bringYourOwnStringFee: shop.bringYourOwnStringFee,
-                serviceFee: 2.99,
+                serviceFee: PricingEngine.playerServiceFee,
+                stringerCommission: PricingEngine.stringerCommission(
+                    on: nxt.price + shop.services[0].laborPrice * 2 + shop.bringYourOwnStringFee
+                ),
                 tax: 7.31
             ),
             payment: .unpaid(method: .applePay),

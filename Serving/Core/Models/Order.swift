@@ -251,7 +251,11 @@ struct PriceBreakdown: Codable, Hashable {
     var stringsSubtotal: Decimal
     var laborSubtotal: Decimal
     var bringYourOwnStringFee: Decimal
+    /// Paid by the player on top of the order — Serving's.
     var serviceFee: Decimal
+    /// Serving's commission, taken out of the stringer's payout. Not part of
+    /// what the player pays.
+    var stringerCommission: Decimal
     var tax: Decimal
 
     enum CodingKeys: String, CodingKey {
@@ -259,6 +263,7 @@ struct PriceBreakdown: Codable, Hashable {
         case laborSubtotal = "labor_subtotal"
         case bringYourOwnStringFee = "bring_your_own_string_fee"
         case serviceFee = "service_fee"
+        case stringerCommission = "stringer_commission"
         case tax
     }
 
@@ -266,11 +271,18 @@ struct PriceBreakdown: Codable, Hashable {
         stringsSubtotal + laborSubtotal + bringYourOwnStringFee + serviceFee + tax
     }
 
+    /// What the stringer earns: their prices less Serving's commission. Sales
+    /// tax is passed through to them on top of this.
+    var payoutAmount: Decimal {
+        stringsSubtotal + laborSubtotal + bringYourOwnStringFee - stringerCommission
+    }
+
     static let zero = PriceBreakdown(
         stringsSubtotal: 0,
         laborSubtotal: 0,
         bringYourOwnStringFee: 0,
         serviceFee: 0,
+        stringerCommission: 0,
         tax: 0
     )
 }

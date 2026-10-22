@@ -17,12 +17,12 @@ def money(value) -> Decimal:
     return Decimal(value).quantize(CENTS, rounding=ROUND_HALF_EVEN)
 
 
-def platform_fee_rate() -> Decimal:
-    return Decimal(settings.PLATFORM_FEE_RATE)
+def player_service_fee() -> Decimal:
+    return Decimal(settings.PLAYER_SERVICE_FEE)
 
 
-def platform_fee_minimum() -> Decimal:
-    return Decimal(settings.PLATFORM_FEE_MINIMUM)
+def stringer_commission_rate() -> Decimal:
+    return Decimal(settings.STRINGER_COMMISSION_RATE)
 
 
 def tax_rate_for(business: Business) -> Decimal:
@@ -53,7 +53,10 @@ def compute_breakdown(
     byos_fee = business.bring_your_own_string_fee * byos_count
 
     merchandise = strings_subtotal + labor_subtotal + byos_fee
-    service_fee = max(platform_fee_minimum(), merchandise * platform_fee_rate())
+    service_fee = player_service_fee()
+    # Taken out of the stringer's payout, so it is not part of what the
+    # player pays.
+    stringer_commission = merchandise * stringer_commission_rate()
     tax = (strings_subtotal + byos_fee) * tax_rate_for(business)
 
     return {
@@ -61,9 +64,6 @@ def compute_breakdown(
         "labor_subtotal": money(labor_subtotal),
         "bring_your_own_string_fee": money(byos_fee),
         "service_fee": money(service_fee),
+        "stringer_commission": money(stringer_commission),
         "tax": money(tax),
     }
-
-
-def total_of(breakdown: dict[str, Decimal]) -> Decimal:
-    return money(sum(breakdown.values(), Decimal("0")))

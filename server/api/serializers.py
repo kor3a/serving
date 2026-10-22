@@ -330,6 +330,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "labor_subtotal": order.labor_subtotal,
             "bring_your_own_string_fee": order.bring_your_own_string_fee,
             "service_fee": order.service_fee,
+            "stringer_commission": order.stringer_commission,
             "tax": order.tax,
         }
 

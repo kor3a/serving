@@ -189,7 +189,8 @@ from the storefront, or one the player brings themselves:
     "strings_subtotal": 24,
     "labor_subtotal": 22,
     "bring_your_own_string_fee": 0,
-    "service_fee": 2.99,
+    "service_fee": 1.99,
+    "stringer_commission": 3.68,
     "tax": 4.24
   },
   "payment": {
@@ -220,12 +221,15 @@ pre-submit estimate — keep the two in step:
 strings_subtotal          = Σ price of storefront strings
 labor_subtotal            = service.labor_price × racquet count
 bring_your_own_string_fee = business fee × BYOS racquet count
-service_fee               = max($1.49, 6% of the above)
+service_fee               = $1.99 flat, paid by the player
+stringer_commission       = 8% of the first three lines, taken from the payout
 tax                       = resolved from the drop-off address
 ```
 
-The stringer's payout is `strings_subtotal + labor_subtotal +
-bring_your_own_string_fee` — the service fee is Serving's.
+The player pays `strings_subtotal + labor_subtotal + bring_your_own_string_fee
++ service_fee + tax`; `stringer_commission` is not part of that total. Stripe
+keeps `service_fee + stringer_commission` for Serving and sends the rest to the
+stringer: their prices less commission, plus the sales tax.
 
 ## Storefront management
 

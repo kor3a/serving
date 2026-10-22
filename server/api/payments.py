@@ -89,7 +89,10 @@ def _connect_kwargs(order) -> dict:
     account_id = order.business.stripe_account_id
     if not account_id:
         return {}
-    fee_cents = int((order.service_fee * Decimal("100")).to_integral_value())
+    # Serving keeps the player's service fee and the stringer commission;
+    # Stripe sends the rest (the stringer's prices less commission, plus tax)
+    # to the stringer's connected account.
+    fee_cents = int((order.platform_revenue * Decimal("100")).to_integral_value())
     return {
         "application_fee_amount": fee_cents,
         "transfer_data": {"destination": account_id},

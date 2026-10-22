@@ -153,9 +153,11 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 
 # ---------------------------------------------------------------- Serving
 
-# Platform fee, mirrored by PricingEngine.swift on the client.
-PLATFORM_FEE_RATE = os.getenv("PLATFORM_FEE_RATE", "0.06")
-PLATFORM_FEE_MINIMUM = os.getenv("PLATFORM_FEE_MINIMUM", "1.49")
+# Serving's revenue, mirrored by PricingEngine.swift on the client: a flat
+# service fee the player pays on top of the order, and a commission taken out
+# of the stringer's payout.
+PLAYER_SERVICE_FEE = os.getenv("PLAYER_SERVICE_FEE", "1.99")
+STRINGER_COMMISSION_RATE = os.getenv("STRINGER_COMMISSION_RATE", "0.08")
 DEFAULT_TAX_RATE = os.getenv("DEFAULT_TAX_RATE", "0.0913")
 
 # Stripe. Leave the secret key unset in development: payments are then

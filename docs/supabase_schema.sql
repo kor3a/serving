@@ -176,6 +176,7 @@ create table stringing_order (
     labor_subtotal              numeric(10,2) not null default 0,
     bring_your_own_string_fee   numeric(10,2) not null default 0,
     service_fee                 numeric(10,2) not null default 0,
+    stringer_commission         numeric(10,2) not null default 0,  -- not in total
     tax                         numeric(10,2) not null default 0,
     total                       numeric(10,2) generated always as
         (strings_subtotal + labor_subtotal + bring_your_own_string_fee + service_fee + tax) stored,

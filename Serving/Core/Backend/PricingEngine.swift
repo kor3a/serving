@@ -8,9 +8,11 @@ import Foundation
 /// for the pre-submit estimate.
 enum PricingEngine {
 
-    /// Serving's cut, added on top of the stringer's prices.
-    static let platformFeeRate: Decimal = 0.06
-    static let platformFeeMinimum: Decimal = 1.49
+    /// Serving's revenue: a flat fee the player pays on top of the order, and
+    /// a commission taken out of the stringer's payout. Mirrors
+    /// `PLAYER_SERVICE_FEE` and `STRINGER_COMMISSION_RATE` on the server.
+    static let playerServiceFee: Decimal = 1.99
+    static let stringerCommissionRate: Decimal = 0.08
     /// Placeholder rate — the live backend resolves tax by the drop-off address.
     static let estimatedTaxRate: Decimal = 0.0913
 
@@ -30,15 +32,20 @@ enum PricingEngine {
         let byosFee = business.bringYourOwnStringFee * Decimal(byosCount)
 
         let merchandise = stringsSubtotal + laborSubtotal + byosFee
-        let serviceFee = max(platformFeeMinimum, merchandise * platformFeeRate)
         let tax = (stringsSubtotal + byosFee) * estimatedTaxRate
 
         return PriceBreakdown(
             stringsSubtotal: stringsSubtotal.roundedToCents,
             laborSubtotal: laborSubtotal.roundedToCents,
             bringYourOwnStringFee: byosFee.roundedToCents,
-            serviceFee: serviceFee.roundedToCents,
+            serviceFee: playerServiceFee,
+            stringerCommission: stringerCommission(on: merchandise),
             tax: tax.roundedToCents
         )
+    }
+
+    /// Serving's cut of what the stringer charges (strings, labor, BYOS fee).
+    static func stringerCommission(on merchandise: Decimal) -> Decimal {
+        (merchandise * stringerCommissionRate).roundedToCents
     }
 }

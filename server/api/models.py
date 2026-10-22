@@ -316,6 +316,11 @@ class Order(models.Model):
         max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
     service_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    # Serving's cut of the stringer's side, kept on the order so a historical
+    # payout never changes when the rate does. Not part of `total`.
+    stringer_commission = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
+    )
     tax = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
 
     payment_method = models.CharField(
@@ -358,8 +363,21 @@ class Order(models.Model):
 
     @property
     def payout_amount(self) -> Decimal:
-        """What the stringer receives — everything except the platform fee."""
-        return self.strings_subtotal + self.labor_subtotal + self.bring_your_own_string_fee
+        """What the stringer earns: their prices minus Serving's commission.
+
+        Sales tax is passed through to them on top of this.
+        """
+        return (
+            self.strings_subtotal
+            + self.labor_subtotal
+            + self.bring_your_own_string_fee
+            - self.stringer_commission
+        )
+
+    @property
+    def platform_revenue(self) -> Decimal:
+        """Serving's share: the player's service fee plus the commission."""
+        return self.service_fee + self.stringer_commission
 
 
 class OrderRacquet(models.Model):
