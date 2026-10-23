@@ -20,9 +20,23 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-
-	<key>UILaunchScreen</key>
-	<dict/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Serving uses Face ID to unlock your account.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Serving uses your location to find racquet stringers near you.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -30,6 +44,8 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
@@ -45,32 +61,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Serving uses your location to find racquet stringers near you.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Serving uses Face ID to unlock your account.</string>
-
-	<!--
-	  App Transport Security blocks plain HTTP. These exceptions exist so the
-	  app can talk to a Django dev server over http://localhost:8000 (simulator)
-	  or http://<your-mac>.local:8000 (device on the same Wi-Fi).
-
-	  Delete this whole NSAppTransportSecurity dictionary before shipping —
-	  production traffic goes over HTTPS and needs no exception.
-	-->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>localhost</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
 </dict>
 </plist>
