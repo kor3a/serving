@@ -6,6 +6,7 @@ Nothing here needs editing to run locally — copy .env.example to .env and go.
 
 from datetime import timedelta
 from pathlib import Path
+import sys
 
 import dj_database_url
 from dotenv import load_dotenv
@@ -78,19 +79,33 @@ TEMPLATES = [
 
 # ---------------------------------------------------------------- database
 
-# DATABASE_URL points at Supabase in any real environment. Without it we fall
-# back to SQLite so `manage.py runserver` works on a fresh clone.
+# DATABASE_URL points at Neon in any real environment. `neon env pull` writes
+# two strings for the same database: DATABASE_URL is the pooled (-pooler)
+# endpoint, which runs PgBouncer in transaction mode and carries the app's
+# traffic; DATABASE_URL_UNPOOLED is the direct endpoint, which schema changes
+# and test-database creation need. Without either we fall back to SQLite so
+# `manage.py runserver` works on a fresh clone.
+DIRECT_DB_COMMANDS = {"migrate", "test", "dbshell"}
+
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+DATABASE_URL_UNPOOLED = os.getenv("DATABASE_URL_UNPOOLED", "")
+
+if DATABASE_URL_UNPOOLED and len(sys.argv) > 1 and sys.argv[1] in DIRECT_DB_COMMANDS:
+    DATABASE_URL = DATABASE_URL_UNPOOLED
 
 if DATABASE_URL:
-    DATABASES = {
-        "default": dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "600")),
-            # Supabase requires TLS.
-            ssl_require=env_bool("DB_SSL_REQUIRE", True),
-        )
-    }
+    default_db = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "600")),
+        # Neon computes scale to zero after a few idle minutes, which drops
+        # persistent connections; check before reusing one.
+        conn_health_checks=True,
+        # Neon requires TLS.
+        ssl_require=env_bool("DB_SSL_REQUIRE", True),
+    )
+    # Server-side cursors don't survive transaction-mode pooling.
+    default_db["DISABLE_SERVER_SIDE_CURSORS"] = "-pooler." in DATABASE_URL
+    DATABASES = {"default": default_db}
 else:
     DATABASES = {
         "default": {

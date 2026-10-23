@@ -1,4 +1,4 @@
--- Serving — Postgres / Supabase schema
+-- Serving — Postgres schema (Neon)
 --
 -- Matches the models in Serving/Core/Models. Django owns writes through DRF;
 -- this file is the starting point for the initial migration.
