@@ -5,13 +5,16 @@ import Foundation
 /// The player is never charged at checkout. The order is submitted as
 /// `awaitingBusiness`; the stringer acknowledges it and proposes a pick-up
 /// slot (`awaitingPlayerApproval`); the player accepts, payment is captured,
-/// and only then does the order become `confirmed`.
+/// and only then does the order become `confirmed`. After stringing, the
+/// stringer marks it `complete` (ready for pick up), which sends both sides a
+/// pick-up confirmation, and `pickedUp` once the racquet is handed back.
 enum OrderStatus: String, Codable, CaseIterable, Hashable {
     case awaitingBusiness
     case awaitingPlayerApproval
     case confirmed
     case inProgress
     case complete
+    case pickedUp
     case declined
     case cancelled
 
@@ -21,7 +24,8 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable {
         case .awaitingPlayerApproval: return "Pick-up time proposed"
         case .confirmed: return "Order Confirmed"
         case .inProgress: return "Order In Progress"
-        case .complete: return "Order Complete"
+        case .complete: return "Ready for pick up"
+        case .pickedUp: return "Picked up"
         case .declined: return "Declined"
         case .cancelled: return "Cancelled"
         }
@@ -33,7 +37,8 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable {
         case .awaitingPlayerApproval: return "Accept the proposed pick-up time to confirm and pay."
         case .confirmed: return "You're all set. Drop your racquet off at the scheduled time."
         case .inProgress: return "Your racquet is on the stringing machine."
-        case .complete: return "Ready for pick up."
+        case .complete: return "Ready for pick up at the confirmed location and time."
+        case .pickedUp: return "Racquet returned. Enjoy the fresh strings!"
         case .declined: return "The stringer could not take this job. You were not charged."
         case .cancelled: return "This order was cancelled."
         }
@@ -45,7 +50,8 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable {
         case .awaitingPlayerApproval: return "Waiting on the player to accept your pick-up time."
         case .confirmed: return "Payment captured. Racquet drop-off is scheduled."
         case .inProgress: return "Marked as being strung."
-        case .complete: return "Job finished and picked up."
+        case .complete: return "Ready for pick up. Hand the racquet over at the agreed time."
+        case .pickedUp: return "Racquet handed over. Job done."
         case .declined: return "You declined this request."
         case .cancelled: return "Cancelled."
         }
@@ -56,12 +62,19 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable {
         self == .awaitingBusiness || self == .awaitingPlayerApproval
     }
 
+    /// Booked and not yet back in the player's hands — including a racquet
+    /// that is strung and waiting to be collected.
     var isActive: Bool {
-        self == .confirmed || self == .inProgress
+        self == .confirmed || self == .inProgress || self == .complete
     }
 
     var isClosed: Bool {
-        self == .complete || self == .declined || self == .cancelled
+        self == .pickedUp || self == .declined || self == .cancelled
+    }
+
+    /// Once the racquet is strung there is nothing left to cancel.
+    var isCancellable: Bool {
+        isPending || self == .confirmed || self == .inProgress
     }
 
     /// Where this status sits on the three-step tracker, or `nil` before the
@@ -70,7 +83,7 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable {
         switch self {
         case .confirmed: return .confirmed
         case .inProgress: return .inProgress
-        case .complete: return .complete
+        case .complete, .pickedUp: return .complete
         case .awaitingBusiness, .awaitingPlayerApproval, .declined, .cancelled: return nil
         }
     }

@@ -42,7 +42,10 @@ Stringer acknowledges,
 Player accepts the time        → Stripe PaymentIntent captured
                                → status: confirmed
 Stringer starts the job        → status: inProgress
-Stringer marks it done         → status: complete
+Stringer marks it ready,
+  confirming location & time   → status: complete   (pick-up confirmation
+                                                      pushed to both sides)
+Stringer hands racquet back    → status: pickedUp
 ```
 
 After the player accepts, they land on the **Order Confirmation** screen
@@ -56,6 +59,11 @@ After the player accepts, they land on the **Order Confirmation** screen
 
 `OrderStatus.trackerStep` is the single mapping from status to tracker
 position, so the tracker cannot drift out of sync with the order.
+
+When the stringer marks a racquet ready they first confirm the pick-up location
+and the agreed time; both sides then get the **Pick-up confirmation**
+(`Features/Shared/PickUpConfirmationView.swift`) with those details. The
+stringer closes the order from there with **Hand over racquet** (`pickedUp`).
 
 ## Project layout
 
@@ -75,7 +83,7 @@ Serving/                     iOS app (SwiftUI)
 └── Features/
     ├── Onboarding/          Landing, login, signup, account setup, phone verify
     ├── Stores/              SessionStore, OrderStore, DiscoverStore, BusinessStore
-    ├── Shared/              OrderTrackerView
+    ├── Shared/              OrderTrackerView, PickUpConfirmationView
     ├── Player/              Discover map, storefront, checkout, orders, profile
     └── Business/            Dashboard, orders, calendar, storefront management
 

@@ -137,13 +137,51 @@ def order_confirmed(order):
 
 
 def order_status_changed(order):
-    event = "order.in_progress" if order.status == "inProgress" else "order.complete"
-    body = (
-        "Your racquet is on the stringing machine."
-        if order.status == "inProgress"
-        else "Ready for pick up."
+    if order.status == "complete":
+        order_ready_for_pick_up(order)
+    elif order.status == "pickedUp":
+        notify_order(
+            order.player,
+            event="order.picked_up",
+            title=order.business_name,
+            body="Racquet returned. Enjoy the fresh strings!",
+            order=order,
+        )
+    else:
+        notify_order(
+            order.player,
+            event="order.in_progress",
+            title=order.business_name,
+            body="Your racquet is on the stringing machine.",
+            order=order,
+        )
+
+
+def order_ready_for_pick_up(order):
+    """The pick-up confirmation: both sides get the same location and time."""
+
+    location = ", ".join(
+        part for part in [order.drop_off_line1, order.drop_off_city] if part
+    ) or order.business_name
+    when = order.confirmed_pick_up_date
+    details = f"{location} · {when:%a, %b %-d at %-I:%M %p}" if when else location
+
+    notify_order(
+        order.player,
+        event="order.complete",
+        title="Ready for pick up",
+        body=f"{order.business_name}: {details}",
+        order=order,
     )
-    notify_order(order.player, event=event, title=order.business_name, body=body, order=order)
+    owner = getattr(order.business, "owner_account", None)
+    if owner:
+        notify_order(
+            owner,
+            event="order.complete",
+            title="Pick-up confirmed",
+            body=f"{order.player_name} picks up order {order.order_number}: {details}",
+            order=order,
+        )
 
 
 def order_cancelled(order, *, notify_player: bool):

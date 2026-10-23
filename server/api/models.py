@@ -43,7 +43,8 @@ class OrderStatus(models.TextChoices):
     AWAITING_PLAYER_APPROVAL = "awaitingPlayerApproval", "Pick-up time proposed"
     CONFIRMED = "confirmed", "Confirmed"
     IN_PROGRESS = "inProgress", "In progress"
-    COMPLETE = "complete", "Complete"
+    COMPLETE = "complete", "Ready for pick up"
+    PICKED_UP = "pickedUp", "Picked up"
     DECLINED = "declined", "Declined"
     CANCELLED = "cancelled", "Cancelled"
 

@@ -15,7 +15,7 @@ create type string_category   as enum ('polyester', 'multifilament', 'syntheticG
                                        'naturalGut', 'hybrid', 'badminton');
 create type order_status      as enum ('awaitingBusiness', 'awaitingPlayerApproval',
                                        'confirmed', 'inProgress', 'complete',
-                                       'declined', 'cancelled');
+                                       'pickedUp', 'declined', 'cancelled');
 create type payment_method    as enum ('applePay', 'card', 'payPal');
 create type payment_state     as enum ('requiresPaymentMethod', 'requiresConfirmation',
                                        'processing', 'succeeded', 'failed', 'refunded');
@@ -193,10 +193,10 @@ create table stringing_order (
     -- The pick-up time is only "confirmed" once the player has accepted it,
     -- which is the same moment payment is captured.
     constraint confirmed_requires_pick_up
-        check (status not in ('confirmed', 'inProgress', 'complete')
+        check (status not in ('confirmed', 'inProgress', 'complete', 'pickedUp')
                or confirmed_pick_up_date is not null),
     constraint confirmed_requires_payment
-        check (status not in ('confirmed', 'inProgress', 'complete')
+        check (status not in ('confirmed', 'inProgress', 'complete', 'pickedUp')
                or payment_state in ('succeeded', 'refunded'))
 );
 

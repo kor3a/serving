@@ -10,6 +10,8 @@ struct OrderTrackerView: View {
     /// When the order was declined or cancelled the tracker is shown greyed
     /// out with a note instead of a step highlighted.
     var isCancelled: Bool = false
+    /// Once the racquet is back with the player every step reads as done.
+    var isFinished: Bool = false
 
     private let steps = OrderTrackerStep.allCases
     private let dotSize: CGFloat = 34
@@ -92,6 +94,7 @@ struct OrderTrackerView: View {
 
     private func state(of step: OrderTrackerStep) -> StepState {
         guard !isCancelled, let currentStep else { return .upcoming }
+        if isFinished { return .done }
         if step.rawValue < currentStep.rawValue { return .done }
         if step.rawValue == currentStep.rawValue { return .current }
         return .upcoming
@@ -121,7 +124,19 @@ struct OrderTrackerView: View {
     private var accessibilityDescription: String {
         guard !isCancelled else { return "Order cancelled" }
         guard let currentStep else { return "Order not yet confirmed" }
+        if isFinished { return "Order picked up" }
         return "Order progress: \(currentStep.title), step \(currentStep.rawValue + 1) of \(steps.count)"
+    }
+}
+
+extension OrderTrackerView {
+    /// The tracker for wherever `order` currently is.
+    init(order: Order) {
+        self.init(
+            currentStep: order.trackerStep,
+            isCancelled: order.status == .cancelled || order.status == .declined,
+            isFinished: order.status == .pickedUp
+        )
     }
 }
 
@@ -130,6 +145,7 @@ struct OrderTrackerView: View {
         OrderTrackerView(currentStep: .confirmed)
         OrderTrackerView(currentStep: .inProgress)
         OrderTrackerView(currentStep: .complete)
+        OrderTrackerView(currentStep: .complete, isFinished: true)
         OrderTrackerView(currentStep: nil, isCancelled: true)
     }
     .padding()

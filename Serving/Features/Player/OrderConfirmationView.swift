@@ -31,7 +31,7 @@ struct OrderConfirmationView: View {
                     // 1 — Order tracker
                     Card(padding: Theme.Spacing.lg) {
                         VStack(spacing: Theme.Spacing.md) {
-                            OrderTrackerView(currentStep: current.trackerStep)
+                            OrderTrackerView(order: current)
                             Text(current.status.playerDetail)
                                 .font(.footnote)
                                 .foregroundStyle(Theme.secondaryText)

@@ -10,6 +10,7 @@ Swift model, these tests should fail until the server sends it.
 import json
 from datetime import timedelta
 from decimal import Decimal
+from unittest import mock
 
 from django.test import override_settings
 from django.utils import timezone
@@ -447,6 +448,64 @@ class ServingFlowTests(APITestCase):
             f"/v1/orders/{order_id}/status/", {"status": "complete"}, format="json"
         )
         self.assertEqual(complete.data["status"], "complete")
+
+        # 4. The racquet is handed back at the confirmed time and place.
+        picked_up = self.client.patch(
+            f"/v1/orders/{order_id}/status/", {"status": "pickedUp"}, format="json"
+        )
+        self.assertEqual(picked_up.status_code, 200, picked_up.data)
+        self.assertEqual(picked_up.data["status"], "pickedUp")
+
+    def make_ready_order(self):
+        """An order that has been paid for, strung and marked ready for pick up."""
+
+        order = self.make_order()
+        self.as_owner()
+        self.client.post(
+            f"/v1/orders/{order['id']}/acknowledge/",
+            {"proposed_pick_up_date": (timezone.now() + timedelta(days=2)).isoformat()},
+            format="json",
+        )
+        self.as_player()
+        self.client.post(
+            f"/v1/orders/{order['id']}/accept-pickup/", {"payment_method": "card"}, format="json"
+        )
+        self.as_owner()
+        for step in ("inProgress", "complete"):
+            self.client.patch(f"/v1/orders/{order['id']}/status/", {"status": step}, format="json")
+        return order
+
+    def test_pick_up_confirmation_goes_to_both_sides(self):
+        with mock.patch("api.push.notify_order") as notify:
+            self.make_ready_order()
+
+        ready = [c for c in notify.call_args_list if c.kwargs["event"] == "order.complete"]
+        self.assertEqual({c.args[0] for c in ready}, {self.player, self.owner})
+        # Both carry the same location and agreed time.
+        bodies = [c.kwargs["body"] for c in ready]
+        self.assertTrue(all(self.business.line1 in body for body in bodies), bodies)
+
+    def test_only_the_stringer_can_mark_a_racquet_picked_up(self):
+        order = self.make_ready_order()
+        self.as_player()
+        response = self.client.patch(
+            f"/v1/orders/{order['id']}/status/", {"status": "pickedUp"}, format="json"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_cannot_pick_up_before_the_racquet_is_ready(self):
+        order = self.make_order()
+        self.as_owner()
+        response = self.client.patch(
+            f"/v1/orders/{order['id']}/status/", {"status": "pickedUp"}, format="json"
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_ready_order_cannot_be_cancelled(self):
+        order = self.make_ready_order()
+        self.as_player()
+        response = self.client.post(f"/v1/orders/{order['id']}/cancel/", {}, format="json")
+        self.assertEqual(response.status_code, 409, response.data)
 
     def test_cannot_accept_before_a_time_is_proposed(self):
         order = self.make_order()

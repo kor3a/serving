@@ -76,6 +76,9 @@ class Command(BaseCommand):
                 "setup_complete": True,
             },
         )
+        # Business is one-to-one with its owner, so detach the demo shop from any
+        # older account (e.g. shop@tensora.app from before the rename) first.
+        User.objects.filter(business=baseline).exclude(pk=owner.pk).update(business=None)
         owner.business = baseline
         owner.account_type = AccountType.BUSINESS
         owner.setup_complete = True

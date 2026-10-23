@@ -516,7 +516,9 @@ def business_earnings(request, business_id):
         paid.filter(status__in=[OrderStatus.CONFIRMED, OrderStatus.IN_PROGRESS])
     )
 
-    completed_this_month = paid.filter(status=OrderStatus.COMPLETE, updated_at__gte=month_start)
+    completed_this_month = paid.filter(
+        status__in=[OrderStatus.COMPLETE, OrderStatus.PICKED_UP], updated_at__gte=month_start
+    )
 
     snapshot = {
         "pending_payout": pending,
@@ -755,6 +757,7 @@ def update_order_status(request, order_id):
     allowed = {
         OrderStatus.CONFIRMED: {OrderStatus.IN_PROGRESS},
         OrderStatus.IN_PROGRESS: {OrderStatus.COMPLETE},
+        OrderStatus.COMPLETE: {OrderStatus.PICKED_UP},
     }
     if new_status not in allowed.get(order.status, set()):
         raise OrderTransitionError(f"Can't move an order from {order.status} to {new_status}.")
@@ -774,8 +777,15 @@ def cancel_order(request, order_id):
     is_business = request.user.business_id == order.business_id
     if not (is_player or is_business):
         return Response({"detail": "Not your order."}, status=status.HTTP_403_FORBIDDEN)
-    if order.status in {OrderStatus.COMPLETE, OrderStatus.CANCELLED, OrderStatus.DECLINED}:
-        raise OrderTransitionError("This order is already closed.")
+    # Once the racquet is strung there is nothing left to cancel: it is
+    # waiting to be collected, or already has been.
+    if order.status in {
+        OrderStatus.COMPLETE,
+        OrderStatus.PICKED_UP,
+        OrderStatus.CANCELLED,
+        OrderStatus.DECLINED,
+    }:
+        raise OrderTransitionError("This order can no longer be cancelled.")
 
     if order.payment_state == PaymentState.SUCCEEDED:
         if payments.refund_order(order):
