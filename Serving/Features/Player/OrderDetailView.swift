@@ -81,18 +81,15 @@ struct OrderDetailView: View {
             // shouldn't open the confirmation again on the way back.
             if ready?.id == orderID { orders.readyForPickUpOrder = nil }
         }
-        .confirmationDialog(
+        .popup(
             "Cancel this order?",
             isPresented: $showCancelDialog,
-            titleVisibility: .visible
-        ) {
-            Button("Cancel order", role: .destructive) {
+            message: "If payment was already taken it will be refunded.",
+            confirm: PopupAction("Cancel order", role: .destructive) {
                 Task { await orders.cancel(orderID: orderID) }
-            }
-            Button("Keep order", role: .cancel) {}
-        } message: {
-            Text("If payment was already taken it will be refunded.")
-        }
+            },
+            cancelTitle: "Keep order"
+        )
         .errorAlert(message: $orders.errorMessage)
     }
 

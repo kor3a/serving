@@ -127,19 +127,16 @@ struct RacquetEditorView: View {
                     }
                 }
             }
-            .confirmationDialog(
+            .popup(
                 "Remove \(racquet.displayName.isEmpty ? "this racquet" : racquet.displayName)?",
                 isPresented: $showDeleteDialog,
-                titleVisibility: .visible
-            ) {
-                Button("Remove", role: .destructive) {
+                confirm: PopupAction("Remove", role: .destructive) {
                     Task {
                         await store.delete(id: racquet.id)
                         dismiss()
                     }
                 }
-                Button("Cancel", role: .cancel) {}
-            }
+            )
             .interactiveDismissDisabled(isSaving)
         }
     }
