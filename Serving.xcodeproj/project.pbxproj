@@ -56,6 +56,7 @@
 		D2AE9566C5283B4D01EEE0A0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD7133F2C04E4370847EBA1E /* APIClient.swift */; };
 		D7551787D3EDD46D684963AA /* CheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C324D7FDB58385A047E40A74 /* CheckoutView.swift */; };
 		E4FFFB6B499937656823B4A5 /* BusinessStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6287EE9C1EFFE1747A72BE /* BusinessStore.swift */; };
+		B1C2D3E4F5061728394A5B6C /* RacquetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* RacquetStore.swift */; };
 		E618D95E3958A6C8A75103E6 /* BusinessStorefrontView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CBB1A77F6BCAE9A7412EEA9 /* BusinessStorefrontView.swift */; };
 		F6C17AB14E0FBACE701D063B /* BusinessSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1104690BF383122C770336 /* BusinessSettingsView.swift */; };
 		F9E70575C6B07852812D4242 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5623B93AA158805473D807 /* LoginView.swift */; };
@@ -111,6 +112,7 @@
 		C324D7FDB58385A047E40A74 /* CheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutView.swift; sourceTree = "<group>"; };
 		CAA9EE4BE42EA560951F5C1B /* Backend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
 		CC6287EE9C1EFFE1747A72BE /* BusinessStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessStore.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* RacquetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RacquetStore.swift; sourceTree = "<group>"; };
 		CCEB5CD42A2D3B318A4CCCAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D636F35FD31121C1B091B164 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D9E4B047789C2C5DAE930E72 /* LandingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingView.swift; sourceTree = "<group>"; };
@@ -218,6 +220,7 @@
 			isa = PBXGroup;
 			children = (
 				CC6287EE9C1EFFE1747A72BE /* BusinessStore.swift */,
+				A1B2C3D4E5F60718293A4B5C /* RacquetStore.swift */,
 				B60F9A7033ECAAF1E4C4B0C0 /* DiscoverStore.swift */,
 				9AA38C030F906D51A6CE4915 /* OrderStore.swift */,
 				1A3C79AF29A5AF95A3F21591 /* SessionStore.swift */,
@@ -444,6 +447,7 @@
 				0C9BE7DDF57F627BCDAB34D9 /* OrderTrackerView.swift in Sources */,
 				1453A7B54F64C11343A78177 /* PickUpConfirmationView.swift in Sources */,
 				E4FFFB6B499937656823B4A5 /* BusinessStore.swift in Sources */,
+				B1C2D3E4F5061728394A5B6C /* RacquetStore.swift in Sources */,
 				46335C90D0847A56E0AAB4F3 /* DiscoverStore.swift in Sources */,
 				C7A2209D31C5CCBEB6B832F2 /* OrderStore.swift in Sources */,
 				B0AEA32D67994CD6DB2B069E /* SessionStore.swift in Sources */,

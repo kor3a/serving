@@ -23,6 +23,7 @@ from .models import (
     Order,
     OrderStatus,
     PaymentState,
+    PlayerRacquet,
     StringCategory,
     StringingService,
     StringProduct,
@@ -49,8 +50,10 @@ ORDER_KEYS = {
     "proposed_pick_up_date", "confirmed_pick_up_date", "business_note", "pricing",
     "payment", "status", "created_at", "updated_at",
 }
-RACQUET_KEYS = {"id", "sport", "model", "string_selection", "main_tension",
+RACQUET_KEYS = {"id", "sport", "model", "color", "string_selection", "main_tension",
                 "cross_tension", "notes"}
+PLAYER_RACQUET_KEYS = {"id", "sport", "manufacturer", "model", "color", "main_tension",
+                       "cross_tension"}
 PRICING_KEYS = {"strings_subtotal", "labor_subtotal", "bring_your_own_string_fee",
                 "service_fee", "tax"}
 PAYMENT_KEYS = {"method", "state", "payment_intent_id", "charged_at", "last4"}
@@ -164,6 +167,7 @@ class ServingFlowTests(APITestCase):
                     "id": "11111111-1111-1111-1111-111111111111",
                     "sport": "tennis",
                     "model": "Babolat Pure Aero 98",
+                    "color": "Yellow / Black",
                     "string_selection": selection,
                     "main_tension": 52,
                     "cross_tension": 50,
@@ -715,6 +719,80 @@ class ServingFlowTests(APITestCase):
         self.assertEqual(set(response.data), EARNINGS_KEYS)
         # Payout excludes the platform fee: 24.00 string + 22.00 labor.
         self.assertEqual(Decimal(str(response.data["pending_payout"])), Decimal("46.00"))
+
+    # ------------------------------------------------------------ player racquets
+
+    def test_player_racquet_round_trip(self):
+        self.as_player()
+        racquet_id = "22222222-2222-2222-2222-222222222222"
+        payload = {
+            "id": racquet_id,
+            "sport": "badminton",
+            "manufacturer": "  Yonex ",
+            "model": "Astrox 88D",
+            "color": "Camel Gold",
+            "main_tension": 26,
+            "cross_tension": 26,
+        }
+
+        created = self.client.put("/v1/players/me/racquets/", payload, format="json")
+        self.assertEqual(created.status_code, 200, created.data)
+        self.assertEqual(set(created.data), PLAYER_RACQUET_KEYS)
+        self.assertEqual(created.data["manufacturer"], "Yonex")
+        self.assertIsInstance(created.data["main_tension"], float)
+
+        # Same id updates in place rather than adding a second racquet.
+        payload["color"] = "Black"
+        self.client.put("/v1/players/me/racquets/", payload, format="json")
+        listed = self.client.get("/v1/players/me/racquets/")
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(len(listed.data), 1)
+        self.assertEqual(listed.data[0]["color"], "Black")
+
+        deleted = self.client.delete(f"/v1/players/me/racquets/{racquet_id}/")
+        self.assertEqual(deleted.status_code, 204)
+        self.assertEqual(self.client.get("/v1/players/me/racquets/").data, [])
+
+    def test_player_racquet_needs_a_manufacturer(self):
+        self.as_player()
+        response = self.client.put(
+            "/v1/players/me/racquets/",
+            {"sport": "tennis", "manufacturer": " ", "main_tension": 52, "cross_tension": 52},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_racquets_are_scoped_to_the_player(self):
+        other = User.objects.create_user(
+            email="other@example.com", password="serving123",
+            account_type=AccountType.PLAYER, setup_complete=True,
+        )
+        theirs = PlayerRacquet.objects.create(
+            player=other, manufacturer="Head", main_tension=50, cross_tension=50
+        )
+
+        self.as_player()
+        self.assertEqual(self.client.get("/v1/players/me/racquets/").data, [])
+        self.client.delete(f"/v1/players/me/racquets/{theirs.id}/")
+        self.assertTrue(PlayerRacquet.objects.filter(id=theirs.id).exists())
+
+        # Reusing their id creates a new row for this player instead.
+        response = self.client.put(
+            "/v1/players/me/racquets/",
+            {"id": str(theirs.id), "manufacturer": "Wilson", "main_tension": 55, "cross_tension": 55},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)
+        theirs.refresh_from_db()
+        self.assertEqual(theirs.manufacturer, "Head")
+
+    def test_business_accounts_cannot_save_racquets(self):
+        self.as_owner()
+        self.assertEqual(self.client.get("/v1/players/me/racquets/").status_code, 403)
+
+    def test_order_keeps_the_racquet_color(self):
+        order = self.make_order()
+        self.assertEqual(order["racquets"][0]["color"], "Yellow / Black")
 
     def test_device_token_registration(self):
         self.as_player()

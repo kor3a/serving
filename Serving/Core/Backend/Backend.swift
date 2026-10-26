@@ -51,6 +51,15 @@ protocol Backend: AnyObject {
     func updateOrderStatus(orderID: UUID, status: OrderStatus) async throws -> Order
     func cancelOrder(orderID: UUID) async throws -> Order
 
+    // MARK: Player racquets
+
+    /// The signed-in player's saved racquets.
+    func racquets() async throws -> [PlayerRacquet]
+    /// Creates or updates a racquet (keyed on its client-generated id) and
+    /// returns the player's full list.
+    func upsertRacquet(_ racquet: PlayerRacquet) async throws -> [PlayerRacquet]
+    func deleteRacquet(id: UUID) async throws -> [PlayerRacquet]
+
     // MARK: Storefront management
 
     func updateBusinessProfile(_ business: StringerBusiness) async throws -> StringerBusiness

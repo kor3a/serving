@@ -68,6 +68,73 @@ struct AppUser: Identifiable, Codable, Hashable {
     }
 }
 
+/// A racquet saved to a player's account. A storefront order snapshots it into
+/// a `RacquetItem` together with the string picked at that shop.
+struct PlayerRacquet: Identifiable, Codable, Hashable {
+    var id: UUID
+    var sport: RacquetSport
+    var manufacturer: String
+    /// Optional — plenty of players only know "my blue Yonex".
+    var model: String
+    var color: String
+    var mainTension: Double
+    var crossTension: Double
+
+    init(
+        id: UUID = UUID(),
+        sport: RacquetSport = .tennis,
+        manufacturer: String = "",
+        model: String = "",
+        color: String = "",
+        mainTension: Double? = nil,
+        crossTension: Double? = nil
+    ) {
+        self.id = id
+        self.sport = sport
+        self.manufacturer = manufacturer
+        self.model = model
+        self.color = color
+        self.mainTension = mainTension ?? sport.defaultTension
+        self.crossTension = crossTension ?? mainTension ?? sport.defaultTension
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case sport
+        case manufacturer
+        case model
+        case color
+        case mainTension = "main_tension"
+        case crossTension = "cross_tension"
+    }
+
+    var isComplete: Bool { !manufacturer.trimmed.isEmpty }
+
+    /// "Yonex Astrox 88D", or just the manufacturer when no model was given.
+    var displayName: String {
+        [manufacturer.trimmed, model.trimmed].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    var tensionText: String {
+        let mains = mainTension.tensionString
+        let crosses = crossTension.tensionString
+        return mains == crosses ? "\(mains) lbs" : "\(mains) / \(crosses) lbs"
+    }
+
+    /// The order line for this racquet, strung with `string`.
+    func orderItem(string: StringSelection) -> RacquetItem {
+        RacquetItem(
+            id: id,
+            sport: sport,
+            model: displayName,
+            color: color.trimmed.isEmpty ? nil : color.trimmed,
+            stringSelection: string,
+            mainTension: mainTension,
+            crossTension: crossTension
+        )
+    }
+}
+
 /// Credentials returned by Django Auth after a password / OAuth exchange.
 struct AuthSession: Codable, Hashable {
     var accessToken: String

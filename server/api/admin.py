@@ -9,6 +9,7 @@ from .models import (
     OrderRacquet,
     Payout,
     PhoneVerification,
+    PlayerRacquet,
     StringingService,
     StringProduct,
     User,
@@ -73,6 +74,13 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ["order_number", "business_name", "player_name"]
     readonly_fields = ["id", "created_at", "updated_at"]
     inlines = [RacquetInline]
+
+
+@admin.register(PlayerRacquet)
+class PlayerRacquetAdmin(admin.ModelAdmin):
+    list_display = ["__str__", "player", "sport", "color", "main_tension", "cross_tension"]
+    list_filter = ["sport"]
+    search_fields = ["manufacturer", "model", "player__email"]
 
 
 admin.site.register([DeviceToken, PhoneVerification, Payout])

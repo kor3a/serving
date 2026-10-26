@@ -19,6 +19,9 @@ final class SessionStore: ObservableObject {
     @Published private(set) var phase: Phase = .launching
     @Published var isWorking = false
     @Published var errorMessage: String?
+    /// Set when a player account has just been created, so the player tabs
+    /// can ask whether they want to add their racquet. Cleared once shown.
+    @Published private(set) var shouldOfferRacquetSetup = false
 
     private let backend: Backend
 
@@ -109,14 +112,20 @@ final class SessionStore: ObservableObject {
     func completeSetup(_ draft: AccountSetupDraft) async {
         await perform {
             let session = try await self.backend.completeAccountSetup(draft)
+            self.shouldOfferRacquetSetup = session.user?.accountType == .player
             self.apply(session)
         }
+    }
+
+    func didOfferRacquetSetup() {
+        shouldOfferRacquetSetup = false
     }
 
     // MARK: - Sign out
 
     func signOut() async {
         try? await backend.signOut()
+        shouldOfferRacquetSetup = false
         phase = .landing
     }
 

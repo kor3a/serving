@@ -58,5 +58,6 @@ struct SplashView: View {
         .environmentObject(SessionStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(OrderStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(DiscoverStore(backend: AppEnvironment.previewBackend()))
+        .environmentObject(RacquetStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(LocationService())
 }
