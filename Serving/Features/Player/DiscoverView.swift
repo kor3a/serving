@@ -1,24 +1,20 @@
 import MapKit
 import SwiftUI
 
-/// Map of nearby stringers with a results sheet layered over it.
+/// Map of nearby stringers with a results panel hanging from the top of it.
 ///
 /// Shops that already run on Serving open their storefront; shops discovered
 /// from the map that haven't claimed an account show name, address and a call
 /// button instead.
 ///
-/// The sheet is up the whole time this screen is on, and a sheet covers the
-/// system tab bar, so this is the one screen that hides the bottom bar and
-/// floats `PlayerTabPicker` over the map instead.
+/// The results live in a panel that drops down from the top rather than a
+/// sheet. A sheet is presented on the window and covers the system tab bar,
+/// whereas this panel is part of the screen, so Discover keeps the same bottom
+/// bar as Orders and Profile.
 struct DiscoverView: View {
-
-    /// Drives the tab bar this screen draws at the top of itself, in place of
-    /// the system one at the bottom.
-    @Binding var selectedTab: PlayerRootView.Tab
 
     @EnvironmentObject private var discover: DiscoverStore
     @EnvironmentObject private var location: LocationService
-    @EnvironmentObject private var orders: OrderStore
 
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
@@ -27,20 +23,33 @@ struct DiscoverView: View {
         )
     )
     /// Lets the compass and user-location button be positioned by hand,
-    /// clear of the floating tab bar.
+    /// below the results panel.
     @Namespace private var mapScope
 
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var showSearchThisArea = false
-    @State private var isSheetPresented = true
+    /// Where the map came to rest after the app last moved it or searched it.
+    /// "Search this area" appears once the player pans well away from here.
+    /// Cleared while the app is moving the map, and picked up again from
+    /// wherever that move lands.
+    @State private var settledCenter: Coordinate?
     @State private var hasCenteredOnUser = false
-    @State private var sheetDetent: PresentationDetent = .medium
+    @State private var panelDetent: PanelDetent = .medium
+    /// How far the panel's handle has been dragged from `panelDetent`. Springs
+    /// back to zero as the panel settles on its new detent.
+    @GestureState(resetTransaction: Transaction(animation: PanelDetent.animation))
+    private var panelDrag: CGFloat = 0
+    /// Search bar plus filter chips — what stays visible when collapsed.
+    @State private var panelHeaderHeight: CGFloat = 0
+    /// Top of the open map: below the panel at its half-open height.
+    @State private var mapTopInset: CGFloat = 0
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         NavigationStack {
             mapScreen
                 // The storefront pushes onto this stack rather than inside the
-                // sheet, so it gets the full screen and survives tab switches.
+                // panel, so it gets the full screen and survives tab switches.
                 .navigationDestination(item: $discover.selectedBusiness) { business in
                     if business.isClaimed {
                         StorefrontView(business: business)
@@ -52,79 +61,96 @@ struct DiscoverView: View {
     }
 
     private var mapScreen: some View {
-        ZStack(alignment: .top) {
-            map
-                .ignoresSafeArea(edges: .top)
+        // Sized to the space between the status bar and the tab bar (and the
+        // keyboard, so the expanded list stays above it).
+        GeometryReader { proxy in
+            let heights = PanelHeights(
+                available: proxy.size.height,
+                collapsed: panelHeaderHeight + PanelHandle.height
+            )
+            let panelHeight = heights.clamped(heights[panelDetent] + panelDrag)
 
-            // Outside the map's `ignoresSafeArea`, so this stack starts under
-            // the status bar. Everything that floats over the map hangs off
-            // it, which keeps it clear of the picker without hardcoding a top
-            // inset.
-            VStack(spacing: Theme.Spacing.sm) {
-                PlayerTabPicker(
-                    selection: $selectedTab,
-                    ordersBadge: orders.awaitingPlayerApproval.count
-                )
+            ZStack(alignment: .top) {
+                map
+                    // The map runs under the panel, but treats only the part
+                    // below it as visible, so framing the results centres
+                    // them in the open map rather than behind the panel.
+                    // Pinned to the half-open height rather than following
+                    // the panel — MapKit recentres whenever the inset
+                    // changes, which would shift the map on every drag.
+                    .safeAreaPadding(.top, mapTopInset)
+                    .ignoresSafeArea(edges: .top)
+                    .ignoresSafeArea(.keyboard)
 
-                ZStack(alignment: .top) {
-                    mapControls
-                    searchThisAreaButton
+                VStack(spacing: Theme.Spacing.sm) {
+                    resultsPanel(height: panelHeight, heights: heights)
+
+                    ZStack(alignment: .top) {
+                        mapControls
+                        searchThisAreaButton
+                    }
+                    // Nothing of the map is left to control once the panel is
+                    // most of the way down.
+                    .opacity(heights.expanded - panelHeight > 120 ? 1 : 0)
                 }
+            }
+            .onChange(of: heights[.medium], initial: true) { _, medium in
+                // Held while typing, so the keyboard squeezing the space
+                // doesn't move the map underneath it.
+                guard !isSearchFocused else { return }
+                mapTopInset = proxy.safeAreaInsets.top + medium
             }
         }
         .mapScope(mapScope)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
-        // The bottom bar would sit under the results sheet, so this screen
-        // hides it and carries its own tabs at the top instead. It comes back
-        // on the storefront, which has no sheet over it.
-        .toolbar(.hidden, for: .tabBar)
-        .sheet(isPresented: $isSheetPresented) {
-            resultsSheet
-                .presentationDetents(
-                    [.height(140), .medium, .custom(BelowTopTabsDetent.self)],
-                    selection: $sheetDetent
-                )
-                // Enabled at every detent, otherwise the top tabs stop
-                // responding once the sheet is above `.medium`.
-                .presentationBackgroundInteraction(.enabled)
-                .presentationDragIndicator(.visible)
-                .interactiveDismissDisabled()
-        }
         .task {
             location.requestPermissionIfNeeded()
             if discover.results.isEmpty {
                 await discover.search(near: location.effectiveCoordinate)
+                frameResults()
             }
         }
         .onChange(of: location.coordinate) { _, newValue in
             guard let newValue, !hasCenteredOnUser else { return }
             hasCenteredOnUser = true
-            withAnimation {
-                cameraPosition = .region(
-                    MKCoordinateRegion(
-                        center: newValue.clCoordinate,
-                        span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
-                    )
-                )
+            Task {
+                await discover.search(near: newValue)
+                frameResults()
             }
-            Task { await discover.search(near: newValue) }
         }
-        .onChange(of: discover.selectedBusiness) { _, _ in
-            // Hide the results sheet while a storefront is pushed, and
-            // bring it back when the player navigates away from it.
-            syncSheetPresentation()
-        }
-        .onChange(of: selectedTab) { _, _ in
-            // The sheet is presented on the window, so it would stay up over
-            // Orders and Profile if it were left presented on a tab switch.
-            syncSheetPresentation()
+        .onChange(of: isSearchFocused) { _, isFocused in
+            // Typing into a collapsed panel would leave the results hidden.
+            guard isFocused, panelDetent == .collapsed else { return }
+            withAnimation(PanelDetent.animation) { panelDetent = .medium }
         }
         .errorAlert(message: $discover.errorMessage)
     }
 
-    private func syncSheetPresentation() {
-        isSheetPresented = selectedTab == .discover && discover.selectedBusiness == nil
+    /// Fits the player and the results into the part of the map below the
+    /// panel, or just centres on the player when nothing was found.
+    private func frameResults() {
+        let center = discover.searchCenter
+        let points = discover.filteredResults.map(\.coordinate) + [center]
+        let latitudes = points.map(\.latitude)
+        let longitudes = points.map(\.longitude)
+        guard let minLat = latitudes.min(), let maxLat = latitudes.max(),
+              let minLon = longitudes.min(), let maxLon = longitudes.max() else { return }
+
+        // Padded so the outermost pins and their labels aren't on the edge,
+        // and floored so a single nearby shop doesn't zoom to street level.
+        let region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(
+                latitude: (minLat + maxLat) / 2,
+                longitude: (minLon + maxLon) / 2
+            ),
+            span: MKCoordinateSpan(
+                latitudeDelta: max((maxLat - minLat) * 1.4, 0.04),
+                longitudeDelta: max((maxLon - minLon) * 1.4, 0.04)
+            )
+        )
+        settledCenter = nil
+        withAnimation { cameraPosition = .region(region) }
     }
 
     // MARK: - Map
@@ -144,12 +170,16 @@ struct DiscoverView: View {
             }
         }
         // The built-in controls sit in the top-trailing corner, which the
-        // floating tab bar now occupies, so they are placed by hand below it.
+        // results panel occupies, so they are placed by hand below it.
         .mapControls { }
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
-            let moved = discover.searchCenter.distanceMeters(to: Coordinate(context.region.center))
-            showSearchThisArea = moved > 1_500
+            let center = Coordinate(context.region.center)
+            guard let settledCenter else {
+                settledCenter = center
+                return
+            }
+            showSearchThisArea = settledCenter.distanceMeters(to: center) > 1_500
         }
     }
 
@@ -168,6 +198,7 @@ struct DiscoverView: View {
             Button {
                 guard let visibleRegion else { return }
                 showSearchThisArea = false
+                settledCenter = Coordinate(visibleRegion.center)
                 Task { await discover.searchVisibleRegion(visibleRegion) }
             } label: {
                 Label("Search this area", systemImage: "arrow.triangle.2.circlepath")
@@ -179,66 +210,107 @@ struct DiscoverView: View {
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .foregroundStyle(Theme.primaryText)
-            // Sits directly under the floating tab bar in the same stack, so
-            // it needs no inset of its own.
+            // Sits directly under the results panel in the same stack, so it
+            // follows the panel up and down with no inset of its own.
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 
-    // MARK: - Results sheet
+    // MARK: - Results panel
 
-    private var resultsSheet: some View {
+    private func resultsPanel(height: CGFloat, heights: PanelHeights) -> some View {
         VStack(spacing: 0) {
-            searchBar
-            filterChips
+            VStack(spacing: 0) {
+                searchBar
+                filterChips
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                panelHeaderHeight = $0
+            }
 
-            if discover.isLoading && discover.filteredResults.isEmpty {
-                ProgressView("Finding stringers…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if discover.filteredResults.isEmpty {
-                EmptyStateView(
-                    iconName: "mappin.slash",
-                    title: "No stringers here yet",
-                    message: "Try widening the map or searching a nearby city.",
-                    actionTitle: "Search this area",
-                    action: {
-                        guard let visibleRegion else { return }
-                        Task { await discover.searchVisibleRegion(visibleRegion) }
-                    }
-                )
-                .frame(maxHeight: .infinity)
-            } else {
-                List {
-                    Section {
-                        ForEach(discover.filteredResults) { business in
-                            Button {
-                                discover.selectedBusiness = business
-                            } label: {
-                                BusinessRow(
-                                    business: business,
-                                    distanceText: discover.distanceText(to: business)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .listRowBackground(Theme.surface)
+            results
+                // Squeezes down to nothing as the panel collapses onto the
+                // search bar, instead of pushing the handle out of the panel.
+                .frame(minHeight: 0, maxHeight: .infinity)
+                .clipped()
+                .opacity(height > heights.collapsed + 1 ? 1 : 0)
+
+            PanelHandle(detent: $panelDetent)
+                .gesture(
+                    DragGesture()
+                        .updating($panelDrag) { value, drag, _ in
+                            drag = value.translation.height
                         }
-                    } header: {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Text("\(discover.filteredResults.count) nearby · \(discover.claimedCount) on Serving")
-                                .font(.caption)
-                            // Carries the refresh spinner the sheet header
-                            // used to hold.
-                            if discover.isLoading {
-                                ProgressView().controlSize(.mini)
+                        .onEnded { value in
+                            let projected = heights[panelDetent] + value.predictedEndTranslation.height
+                            withAnimation(PanelDetent.animation) {
+                                panelDetent = heights.nearest(to: projected)
                             }
+                        }
+                )
+        }
+        .frame(height: height, alignment: .top)
+        .background(
+            UnevenRoundedRectangle(
+                bottomLeadingRadius: Theme.Radius.large,
+                bottomTrailingRadius: Theme.Radius.large,
+                style: .continuous
+            )
+            .fill(Theme.background)
+            .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+            // Runs up behind the status bar, so the panel reads as hanging
+            // from the top edge of the screen.
+            .ignoresSafeArea(edges: .top)
+        )
+    }
+
+    @ViewBuilder
+    private var results: some View {
+        if discover.isLoading && discover.filteredResults.isEmpty {
+            ProgressView("Finding stringers…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if discover.filteredResults.isEmpty {
+            EmptyStateView(
+                iconName: "mappin.slash",
+                title: "No stringers here yet",
+                message: "Try widening the map or searching a nearby city.",
+                actionTitle: "Search this area",
+                action: {
+                    guard let visibleRegion else { return }
+                    Task { await discover.searchVisibleRegion(visibleRegion) }
+                }
+            )
+            .frame(maxHeight: .infinity)
+        } else {
+            List {
+                Section {
+                    ForEach(discover.filteredResults) { business in
+                        Button {
+                            discover.selectedBusiness = business
+                        } label: {
+                            BusinessRow(
+                                business: business,
+                                distanceText: discover.distanceText(to: business)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(Theme.surface)
+                    }
+                } header: {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Text("\(discover.filteredResults.count) nearby · \(discover.claimedCount) on Serving")
+                            .font(.caption)
+                        // Carries the refresh spinner the sheet header
+                        // used to hold.
+                        if discover.isLoading {
+                            ProgressView().controlSize(.mini)
                         }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
-        .background(Theme.background)
     }
 
     private var searchBar: some View {
@@ -249,6 +321,7 @@ struct DiscoverView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
+                .focused($isSearchFocused)
                 .onSubmit { Task { await discover.runSearch() } }
                 .onChange(of: discover.searchText) { _, _ in
                     discover.searchTextChanged()
@@ -271,8 +344,7 @@ struct DiscoverView: View {
                 .fill(Theme.surfaceAlt)
         )
         .padding(.horizontal, Theme.Spacing.md)
-        // Clears the drag indicator, which the sheet header used to sit under.
-        .padding(.top, Theme.Spacing.md)
+        .padding(.top, Theme.Spacing.sm)
         .padding(.bottom, Theme.Spacing.sm)
     }
 
@@ -300,11 +372,85 @@ struct DiscoverView: View {
 
 // MARK: - Supporting views
 
-/// Tallest detent for the results sheet: `.large` would slide up over the tab
-/// picker, so stop the sheet just below it.
-private struct BelowTopTabsDetent: CustomPresentationDetent {
-    static func height(in context: Context) -> CGFloat? {
-        max(context.maxDetentValue - PlayerTabPicker.height, 0)
+/// Resting heights of the results panel. Unlike a sheet's detents these are
+/// measured down from the top of the screen.
+private enum PanelDetent: CaseIterable {
+    /// Just the search bar and filter chips, leaving the map clear.
+    case collapsed
+    case medium
+    /// Down to the tab bar.
+    case expanded
+
+    static let animation = Animation.spring(response: 0.35, dampingFraction: 0.85)
+}
+
+private struct PanelHeights {
+    /// Between the status bar and the tab bar (or keyboard).
+    let available: CGFloat
+    let collapsed: CGFloat
+
+    var expanded: CGFloat { max(available, collapsed) }
+
+    subscript(detent: PanelDetent) -> CGFloat {
+        switch detent {
+        case .collapsed: collapsed
+        case .medium: min(max(available * 0.5, collapsed), expanded)
+        case .expanded: expanded
+        }
+    }
+
+    func clamped(_ height: CGFloat) -> CGFloat {
+        min(max(height, collapsed), expanded)
+    }
+
+    func nearest(to height: CGFloat) -> PanelDetent {
+        PanelDetent.allCases.min { abs(self[$0] - height) < abs(self[$1] - height) } ?? .medium
+    }
+}
+
+/// Grabber along the bottom edge of the results panel — the mirror of a
+/// sheet's drag indicator. Dragging it is wired up by the panel, which knows
+/// the heights; tapping it toggles between collapsed and open.
+private struct PanelHandle: View {
+
+    static let height: CGFloat = 28
+
+    @Binding var detent: PanelDetent
+
+    var body: some View {
+        Capsule()
+            .fill(Theme.secondaryText.opacity(0.4))
+            .frame(width: 36, height: 5)
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.height)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(PanelDetent.animation) {
+                    detent = detent == .collapsed ? .medium : .collapsed
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Results")
+            .accessibilityValue(accessibilityValue)
+            .accessibilityAdjustableAction { direction in
+                withAnimation(PanelDetent.animation) {
+                    switch (direction, detent) {
+                    case (.increment, .collapsed): detent = .medium
+                    case (.increment, _): detent = .expanded
+                    case (.decrement, .expanded): detent = .medium
+                    case (.decrement, _): detent = .collapsed
+                    @unknown default: break
+                    }
+                }
+            }
+    }
+
+    private var accessibilityValue: String {
+        switch detent {
+        case .collapsed: "Collapsed"
+        case .medium: "Half open"
+        case .expanded: "Fully open"
+        }
     }
 }
 
@@ -439,8 +585,7 @@ extension FilterChip where Icon == EmptyView {
 }
 
 #Preview {
-    DiscoverView(selectedTab: .constant(.discover))
+    DiscoverView()
         .environmentObject(DiscoverStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(LocationService())
-        .environmentObject(OrderStore(backend: AppEnvironment.previewBackend()))
 }
