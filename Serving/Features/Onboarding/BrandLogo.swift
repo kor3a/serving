@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Serving mark: a racquet head with its string bed, drawn in code so it
-/// scales cleanly everywhere it appears.
+/// Serving mark: an optic-yellow ball whose seam is an "S", drawn in code so
+/// it scales cleanly everywhere it appears. The app icon is rendered from the
+/// same geometry by `Scripts/render_app_icon.swift`.
 struct BrandLogo: View {
 
     var size: CGFloat = 88
@@ -9,15 +10,14 @@ struct BrandLogo: View {
     var showsWordmark = false
 
     var body: some View {
-        VStack(spacing: size * 0.18) {
-            RacquetMark(tint: tint)
-                .frame(width: size, height: size * 1.28)
+        VStack(spacing: size * 0.2) {
+            BallMark()
+                .frame(width: size, height: size)
 
             if showsWordmark {
                 VStack(spacing: 2) {
-                    Text("SERVING")
-                        .font(.system(size: size * 0.28, weight: .heavy, design: .rounded))
-                        .kerning(size * 0.045)
+                    Text("Serving")
+                        .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
                         .foregroundStyle(tint)
                     Text("Strung by someone near you")
                         .font(.system(size: size * 0.12, weight: .medium))
@@ -28,71 +28,52 @@ struct BrandLogo: View {
     }
 }
 
-private struct RacquetMark: View {
-    var tint: Color
+/// The ball on its own, sized by its frame.
+struct BallMark: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let width = proxy.size.width
-            let height = proxy.size.height
-            let headHeight = height * 0.72
-            let lineWidth = max(1.5, width * 0.055)
+            let diameter = min(proxy.size.width, proxy.size.height)
 
-            ZStack(alignment: .top) {
-                // String bed
-                StringBed(columns: 5, rows: 6)
-                    .stroke(tint.opacity(0.55), lineWidth: max(0.8, width * 0.018))
-                    .frame(width: width * 0.78, height: headHeight * 0.82)
-                    .clipShape(Ellipse())
-                    .offset(y: headHeight * 0.09)
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color(red: 0.93, green: 0.98, blue: 0.42),
+                                Theme.optic,
+                                Color(red: 0.60, green: 0.76, blue: 0.10)
+                            ],
+                            center: UnitPoint(x: 0.32, y: 0.28),
+                            startRadius: 0,
+                            endRadius: diameter * 0.75
+                        )
+                    )
 
-                // Head
-                Ellipse()
-                    .stroke(tint, lineWidth: lineWidth)
-                    .frame(width: width, height: headHeight)
-
-                // Throat + handle
-                Capsule()
-                    .fill(tint)
-                    .frame(width: lineWidth * 1.15, height: height - headHeight + lineWidth)
-                    .offset(y: headHeight - lineWidth / 2)
-
-                Capsule()
-                    .fill(tint)
-                    .frame(width: width * 0.22, height: lineWidth)
-                    .offset(y: height - lineWidth)
+                SeamS()
+                    .stroke(.white, style: StrokeStyle(lineWidth: diameter * 0.078, lineCap: .round))
             }
-            .frame(width: width, height: height)
+            .frame(width: diameter, height: diameter)
+            .clipShape(Circle())
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
+        .aspectRatio(1, contentMode: .fit)
+        .accessibilityHidden(true)
     }
 }
 
-/// The crossing mains and crosses inside the racquet head.
-private struct StringBed: Shape {
-    let columns: Int
-    let rows: Int
-
+/// The seam: an S that is point-symmetric about the centre of the ball. Its
+/// ends run past the edge and are clipped by the ball.
+private struct SeamS: Shape {
     func path(in rect: CGRect) -> Path {
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+        }
+
         var path = Path()
-
-        if columns > 1 {
-            let step = rect.width / CGFloat(columns - 1)
-            for index in 0..<columns {
-                let x = rect.minX + CGFloat(index) * step
-                path.move(to: CGPoint(x: x, y: rect.minY))
-                path.addLine(to: CGPoint(x: x, y: rect.maxY))
-            }
-        }
-
-        if rows > 1 {
-            let step = rect.height / CGFloat(rows - 1)
-            for index in 0..<rows {
-                let y = rect.minY + CGFloat(index) * step
-                path.move(to: CGPoint(x: rect.minX, y: y))
-                path.addLine(to: CGPoint(x: rect.maxX, y: y))
-            }
-        }
-
+        path.move(to: point(0.80, -0.04))
+        path.addCurve(to: point(0.5, 0.5), control1: point(0.24, 0.00), control2: point(0.14, 0.42))
+        path.addCurve(to: point(0.20, 1.04), control1: point(0.86, 0.58), control2: point(0.76, 1.00))
         return path
     }
 }
