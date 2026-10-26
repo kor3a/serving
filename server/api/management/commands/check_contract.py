@@ -25,6 +25,7 @@ from api.models import (
     LocationKind,
     Order,
     OrderRacquet,
+    PlayerRacquet,
     StringCategory,
     StringingService,
     StringKind,
@@ -35,6 +36,7 @@ from api.serializers import (
     BusinessSerializer,
     EarningsSerializer,
     OrderSerializer,
+    PlayerRacquetSerializer,
     UserSerializer,
 )
 
@@ -241,6 +243,15 @@ class Command(BaseCommand):
                     byos_description="Solinco Tour Bite 17",
                 )
 
+                racquet = PlayerRacquet.objects.create(
+                    player=player,
+                    manufacturer="Babolat",
+                    model="Pure Aero 98",
+                    color="Yellow / Black",
+                    main_tension=Decimal("52.0"),
+                    cross_tension=Decimal("50.0"),
+                )
+
                 business.refresh_from_db()
                 order.refresh_from_db()
 
@@ -271,6 +282,7 @@ class Command(BaseCommand):
                     "PriceBreakdown": set(order_json["pricing"]),
                     "PaymentRecord": set(order_json["payment"]),
                     "EarningsSnapshot": set(earnings_json),
+                    "PlayerRacquet": set(PlayerRacquetSerializer(racquet).data),
                     "StringSelection": {
                         variant["string_selection"]["kind"]: set(variant["string_selection"])
                         for variant in order_json["racquets"]

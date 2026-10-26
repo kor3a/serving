@@ -21,6 +21,7 @@ from api.models import (
     LocationKind,
     OpenHours,
     PayoutStatus,
+    PlayerRacquet,
     RacquetSport,
     StringCategory,
     StringingService,
@@ -64,6 +65,7 @@ class Command(BaseCommand):
         )
         player.set_password(DEMO_PASSWORD)
         player.save()
+        self._player_racquets(player)
 
         owner, _ = User.objects.get_or_create(
             email="shop@serving.app",
@@ -88,6 +90,21 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
         self.stdout.write(f"  player@serving.app / {DEMO_PASSWORD}")
         self.stdout.write(f"  shop@serving.app   / {DEMO_PASSWORD}  (manages {baseline.name})")
+
+    def _player_racquets(self, player):
+        """Matches MockData.makePlayerRacquets() in the app."""
+        if player.racquets.exists():
+            return
+        PlayerRacquet.objects.create(
+            player=player, sport=RacquetSport.TENNIS, manufacturer="Babolat",
+            model="Pure Aero 98", color="Yellow / Black",
+            main_tension=Decimal("52.0"), cross_tension=Decimal("50.0"),
+        )
+        PlayerRacquet.objects.create(
+            player=player, sport=RacquetSport.BADMINTON, manufacturer="Yonex",
+            model="Astrox 88D", color="Camel Gold",
+            main_tension=Decimal("26.0"), cross_tension=Decimal("26.0"),
+        )
 
     # ------------------------------------------------------------ shops
 

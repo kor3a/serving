@@ -313,6 +313,14 @@ enum RacquetSport: String, Codable, CaseIterable, Identifiable, Hashable {
         case .badminton: return 24
         }
     }
+
+    /// Quick picks offered in the racquet editor; any name can still be typed.
+    var commonManufacturers: [String] {
+        switch self {
+        case .tennis: return ["Wilson", "Babolat", "Head", "Yonex", "Prince", "Tecnifibre"]
+        case .badminton: return ["Yonex", "Victor", "Li-Ning", "Babolat", "Carlton"]
+        }
+    }
 }
 
 /// A string a business stocks and sells through their storefront.

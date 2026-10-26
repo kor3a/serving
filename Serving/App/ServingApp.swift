@@ -9,6 +9,7 @@ struct ServingApp: App {
     @StateObject private var orders = OrderStore(backend: AppEnvironment.shared.backend)
     @StateObject private var discover = DiscoverStore(backend: AppEnvironment.shared.backend)
     @StateObject private var businessStore = BusinessStore(backend: AppEnvironment.shared.backend)
+    @StateObject private var racquets = RacquetStore(backend: AppEnvironment.shared.backend)
     @StateObject private var location = LocationService()
 
     var body: some Scene {
@@ -18,6 +19,7 @@ struct ServingApp: App {
                 .environmentObject(orders)
                 .environmentObject(discover)
                 .environmentObject(businessStore)
+                .environmentObject(racquets)
                 .environmentObject(location)
                 .tint(Theme.accent)
         }

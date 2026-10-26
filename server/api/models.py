@@ -278,6 +278,35 @@ class StringProduct(models.Model):
         return f"{self.brand} {self.name}"
 
 
+# ---------------------------------------------------------------- player racquets
+
+
+class PlayerRacquet(models.Model):
+    """A racquet saved to a player's account from the Profile tab.
+
+    Orders snapshot it into an `OrderRacquet` with the string picked at that
+    shop, so editing or deleting it never rewrites a past order.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    player = models.ForeignKey(User, on_delete=models.CASCADE, related_name="racquets")
+    sport = models.CharField(
+        max_length=16, choices=RacquetSport.choices, default=RacquetSport.TENNIS
+    )
+    manufacturer = models.CharField(max_length=120)
+    model = models.CharField(max_length=120, blank=True, default="")
+    color = models.CharField(max_length=80, blank=True, default="")
+    main_tension = models.DecimalField(max_digits=4, decimal_places=1)
+    cross_tension = models.DecimalField(max_digits=4, decimal_places=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return " ".join(part for part in [self.manufacturer, self.model] if part)
+
+
 # ---------------------------------------------------------------- orders
 
 
@@ -369,6 +398,7 @@ class OrderRacquet(models.Model):
         max_length=16, choices=RacquetSport.choices, default=RacquetSport.TENNIS
     )
     model = models.CharField(max_length=200, blank=True, default="")
+    color = models.CharField(max_length=80, blank=True, default="")
     main_tension = models.DecimalField(max_digits=4, decimal_places=1)
     cross_tension = models.DecimalField(max_digits=4, decimal_places=1)
     notes = models.TextField(blank=True, default="")

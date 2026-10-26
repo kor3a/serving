@@ -213,6 +213,28 @@ final class LiveBackend: Backend {
         try await api.send(Endpoint(path: Routes.cancel(orderID), method: .post))
     }
 
+    // MARK: - Player racquets
+
+    func racquets() async throws -> [PlayerRacquet] {
+        try await api.send(Endpoint(path: Routes.racquets))
+    }
+
+    func upsertRacquet(_ racquet: PlayerRacquet) async throws -> [PlayerRacquet] {
+        _ = try await api.send(
+            .encoding(racquet, path: Routes.racquets, method: .put),
+            as: PlayerRacquet.self
+        )
+        return try await racquets()
+    }
+
+    func deleteRacquet(id: UUID) async throws -> [PlayerRacquet] {
+        _ = try await api.send(
+            Endpoint(path: Routes.racquet(id), method: .delete),
+            as: EmptyResponse.self
+        )
+        return try await racquets()
+    }
+
     // MARK: - Storefront management
 
     func updateBusinessProfile(_ business: StringerBusiness) async throws -> StringerBusiness {

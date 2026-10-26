@@ -26,6 +26,10 @@ urlpatterns = [
     path("auth/account-setup/", views.account_setup),
     path("notifications/device-tokens/", views.register_device_token),
 
+    # Player racquets
+    path("players/me/racquets/", views.player_racquets),
+    path("players/me/racquets/<uuid:racquet_id>/", views.delete_player_racquet),
+
     # Discovery
     path("businesses/search/", views.business_search),
     path("businesses/<uuid:business_id>/", views.business_detail),

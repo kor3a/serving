@@ -19,6 +19,34 @@ enum MockData {
         phoneVerified: true
     )
 
+    /// Signed in as the demo player — previews that read the player's own
+    /// data (like their racquets) need a session.
+    static var playerSession: AuthSession {
+        AuthSession(accessToken: "mock-access", refreshToken: "mock-refresh", user: player, email: player.email)
+    }
+
+    /// What the demo player has saved on their Profile.
+    static func makePlayerRacquets() -> [PlayerRacquet] {
+        [
+            PlayerRacquet(
+                sport: .tennis,
+                manufacturer: "Babolat",
+                model: "Pure Aero 98",
+                color: "Yellow / Black",
+                mainTension: 52,
+                crossTension: 50
+            ),
+            PlayerRacquet(
+                sport: .badminton,
+                manufacturer: "Yonex",
+                model: "Astrox 88D",
+                color: "Camel Gold",
+                mainTension: 26,
+                crossTension: 26
+            )
+        ]
+    }
+
     static var businessOwner: AppUser {
         AppUser(
             id: businessOwnerID,

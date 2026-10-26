@@ -34,6 +34,7 @@ from .models import (
     OrderStatus,
     PaymentState,
     PayoutStatus,
+    PlayerRacquet,
     StringingService,
     StringKind,
     StringProduct,
@@ -57,6 +58,7 @@ from .serializers import (
     OrderStatusSerializer,
     PhoneRequestSerializer,
     PhoneVerifySerializer,
+    PlayerRacquetSerializer,
     SignupSerializer,
     StringingServiceSerializer,
     StringProductSerializer,
@@ -541,6 +543,61 @@ def _own_business_or_403(request, business_id):
     return business
 
 
+# ---------------------------------------------------------------- player racquets
+
+
+def _player_or_403(request):
+    if request.user.account_type != AccountType.PLAYER:
+        return Response(
+            {"detail": "Only player accounts can save racquets."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
+@api_view(["GET", "PUT"])
+def player_racquets(request):
+    """GET lists the caller's racquets; PUT upserts one keyed on its id."""
+    forbidden = _player_or_403(request)
+    if forbidden:
+        return forbidden
+
+    if request.method == "GET":
+        racquets = PlayerRacquet.objects.filter(player=request.user)
+        return Response(PlayerRacquetSerializer(racquets, many=True).data)
+
+    serializer = PlayerRacquetSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    racquet_id = data.pop("id", None)
+
+    # Like products, the client generates the id. Scoping by player stops one
+    # account overwriting another's racquet.
+    racquet = PlayerRacquet.objects.filter(id=racquet_id, player=request.user).first()
+    if racquet is None and racquet_id and PlayerRacquet.objects.filter(id=racquet_id).exists():
+        return Response({"detail": "Racquet not found."}, status=status.HTTP_404_NOT_FOUND)
+    if racquet is None:
+        racquet = PlayerRacquet.objects.create(
+            player=request.user, **({"id": racquet_id} if racquet_id else {}), **data
+        )
+    else:
+        for field, value in data.items():
+            setattr(racquet, field, value)
+        racquet.save()
+
+    return Response(PlayerRacquetSerializer(racquet).data)
+
+
+@api_view(["DELETE"])
+def delete_player_racquet(request, racquet_id):
+    forbidden = _player_or_403(request)
+    if forbidden:
+        return forbidden
+
+    PlayerRacquet.objects.filter(id=racquet_id, player=request.user).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # ---------------------------------------------------------------- orders
 
 
@@ -590,6 +647,7 @@ def _create_order(request):
         row = {
             "sport": racquet.get("sport", "tennis"),
             "model": racquet.get("model", ""),
+            "color": racquet.get("color", ""),
             "notes": racquet.get("notes", ""),
             "main_tension": racquet["main_tension"],
             "cross_tension": racquet["cross_tension"],

@@ -11,6 +11,7 @@ final class MockBackend: Backend {
     private var businesses: [StringerBusiness]
     private var orders: [Order]
     private var earningsByBusiness: [UUID: EarningsSnapshot]
+    private var racquetsByPlayer: [UUID: [PlayerRacquet]]
     private var session: AuthSession?
     private var pendingCodes: [String: String] = [:]
     private var orderCounter = 4830
@@ -28,6 +29,7 @@ final class MockBackend: Backend {
         self.orders = orders
         self.session = session
         self.earningsByBusiness = [MockData.claimedBusinessID: MockData.makeEarnings()]
+        self.racquetsByPlayer = [MockData.playerID: MockData.makePlayerRacquets()]
     }
 
     private func latency(_ seconds: Double = 0.45) async {
@@ -269,6 +271,38 @@ final class MockBackend: Backend {
         order.updatedAt = Date()
         orders[index] = order
         return order
+    }
+
+    // MARK: - Player racquets
+
+    private var currentPlayerID: UUID? {
+        session?.user?.id
+    }
+
+    func racquets() async throws -> [PlayerRacquet] {
+        await latency(0.25)
+        guard let playerID = currentPlayerID else { throw BackendError.notAuthenticated }
+        return racquetsByPlayer[playerID] ?? []
+    }
+
+    func upsertRacquet(_ racquet: PlayerRacquet) async throws -> [PlayerRacquet] {
+        await latency(0.35)
+        guard let playerID = currentPlayerID else { throw BackendError.notAuthenticated }
+        var list = racquetsByPlayer[playerID] ?? []
+        if let index = list.firstIndex(where: { $0.id == racquet.id }) {
+            list[index] = racquet
+        } else {
+            list.append(racquet)
+        }
+        racquetsByPlayer[playerID] = list
+        return list
+    }
+
+    func deleteRacquet(id: UUID) async throws -> [PlayerRacquet] {
+        await latency(0.3)
+        guard let playerID = currentPlayerID else { throw BackendError.notAuthenticated }
+        racquetsByPlayer[playerID]?.removeAll { $0.id == id }
+        return racquetsByPlayer[playerID] ?? []
     }
 
     // MARK: - Storefront management

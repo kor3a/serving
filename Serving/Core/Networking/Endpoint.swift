@@ -45,6 +45,10 @@ enum Routes {
     static let accountSetup = "auth/account-setup/"
     static let pushToken = "notifications/device-tokens/"
 
+    // Player racquets
+    static let racquets = "players/me/racquets/"
+    static func racquet(_ id: UUID) -> String { "players/me/racquets/\(id.uuidString.lowercased())/" }
+
     // Discovery
     static let businessSearch = "businesses/search/"
     static func business(_ id: UUID) -> String { "businesses/\(id.uuidString.lowercased())/" }

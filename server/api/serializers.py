@@ -18,6 +18,7 @@ from .models import (
     OpenHours,
     Order,
     OrderRacquet,
+    PlayerRacquet,
     OrderStatus,
     PaymentMethod,
     StringingService,
@@ -215,6 +216,33 @@ class BusinessProfileUpdateSerializer(serializers.Serializer):
     open_hours = OpenHoursSerializer(many=True, required=False)
 
 
+# ---------------------------------------------------------------- player racquets
+
+
+class PlayerRacquetSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(required=False)
+    main_tension = serializers.FloatField(min_value=10, max_value=90)
+    cross_tension = serializers.FloatField(min_value=10, max_value=90)
+
+    class Meta:
+        model = PlayerRacquet
+        fields = [
+            "id",
+            "sport",
+            "manufacturer",
+            "model",
+            "color",
+            "main_tension",
+            "cross_tension",
+        ]
+
+    def validate_manufacturer(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Enter the racquet's manufacturer.")
+        return value
+
+
 # ---------------------------------------------------------------- orders
 
 
@@ -268,6 +296,7 @@ class OrderRacquetSerializer(serializers.ModelSerializer):
             "id",
             "sport",
             "model",
+            "color",
             "string_selection",
             "main_tension",
             "cross_tension",

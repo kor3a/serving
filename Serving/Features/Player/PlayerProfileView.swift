@@ -6,8 +6,11 @@ struct PlayerProfileView: View {
 
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var orders: OrderStore
+    @EnvironmentObject private var racquets: RacquetStore
     @StateObject private var push = PushService.shared
     @State private var showSignOutDialog = false
+    @State private var isAddingRacquet = false
+    @State private var editingRacquet: PlayerRacquet?
 
     private var completedCount: Int {
         orders.orders.filter { $0.status == .complete || $0.status == .pickedUp }.count
@@ -36,6 +39,7 @@ struct PlayerProfileView: View {
                         )
                     }
 
+                    racquetsCard
                     accountCard
                     notificationsCard
                     supportCard
@@ -55,6 +59,13 @@ struct PlayerProfileView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
+            .sheet(isPresented: $isAddingRacquet) {
+                RacquetEditorView()
+            }
+            .sheet(item: $editingRacquet) { racquet in
+                RacquetEditorView(racquet: racquet, isNew: false)
+            }
+            .refreshable { await racquets.load() }
         }
     }
 
@@ -74,6 +85,50 @@ struct PlayerProfileView: View {
             Text(user.email)
                 .font(.footnote)
                 .foregroundStyle(Theme.secondaryText)
+        }
+    }
+
+    private var racquetsCard: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SectionHeader(
+                title: "Your racquets",
+                subtitle: racquets.racquets.isEmpty ? nil : "Tap a racquet to edit it",
+                actionTitle: "Add",
+                action: { isAddingRacquet = true }
+            )
+
+            if !racquets.hasLoaded {
+                Card {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                }
+            } else if racquets.racquets.isEmpty {
+                Button {
+                    isAddingRacquet = true
+                } label: {
+                    AddRacquetCard(
+                        title: "Add your racquet",
+                        message: "Save its sport, manufacturer, color and preferred tension."
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                ForEach(racquets.racquets) { racquet in
+                    Button {
+                        editingRacquet = racquet
+                    } label: {
+                        PlayerRacquetRow(racquet: racquet) {
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -168,7 +223,10 @@ extension Bundle {
 }
 
 #Preview {
-    PlayerProfileView(user: MockData.player)
+    let racquets = RacquetStore(backend: AppEnvironment.previewBackend(signedInAs: MockData.playerSession))
+    racquets.configure(playerID: MockData.player.id)
+    return PlayerProfileView(user: MockData.player)
         .environmentObject(SessionStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(OrderStore(backend: AppEnvironment.previewBackend()))
+        .environmentObject(racquets)
 }

@@ -203,6 +203,9 @@ struct RacquetItem: Identifiable, Codable, Hashable {
     var id: UUID
     var sport: RacquetSport
     var model: String
+    /// Helps the stringer tell racquets apart at drop-off. Optional so orders
+    /// placed before colors were recorded still decode.
+    var color: String?
     var stringSelection: StringSelection
     var mainTension: Double
     var crossTension: Double
@@ -212,6 +215,7 @@ struct RacquetItem: Identifiable, Codable, Hashable {
         case id
         case sport
         case model
+        case color
         case stringSelection = "string_selection"
         case mainTension = "main_tension"
         case crossTension = "cross_tension"
@@ -222,6 +226,7 @@ struct RacquetItem: Identifiable, Codable, Hashable {
         id: UUID = UUID(),
         sport: RacquetSport = .tennis,
         model: String = "",
+        color: String? = nil,
         stringSelection: StringSelection,
         mainTension: Double,
         crossTension: Double,
@@ -230,6 +235,7 @@ struct RacquetItem: Identifiable, Codable, Hashable {
         self.id = id
         self.sport = sport
         self.model = model
+        self.color = color
         self.stringSelection = stringSelection
         self.mainTension = mainTension
         self.crossTension = crossTension

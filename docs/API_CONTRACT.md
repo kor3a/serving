@@ -120,6 +120,36 @@ Results mix two kinds of record and the client branches on `is_claimed`:
 `category` is one of `polyester`, `multifilament`, `syntheticGut`,
 `naturalGut`, `hybrid`, `badminton`. `sport` is `tennis` or `badminton`.
 
+## Player racquets
+
+Racquets a player saves from the Profile tab (and is offered to add right
+after signing up). Player accounts only — business accounts get `403`.
+
+| Method | Path | Body | Notes |
+| --- | --- | --- | --- |
+| GET | `players/me/racquets/` | — | The caller's racquets, oldest first |
+| PUT | `players/me/racquets/` | `PlayerRacquet` | Upsert keyed on the client-generated `id` |
+| DELETE | `players/me/racquets/{id}/` | — | `204` |
+
+`PlayerRacquet`:
+
+```json
+{
+  "id": "uuid",
+  "sport": "badminton",               // tennis | badminton
+  "manufacturer": "Yonex",            // required
+  "model": "Astrox 88D",              // may be ""
+  "color": "Camel Gold",              // may be ""
+  "main_tension": 26,
+  "cross_tension": 26
+}
+```
+
+On a storefront the player picks saved racquets under "Your racquets" and
+then a string (or BYOS) for each under "Strings in stock". Each becomes an
+order racquet below: `model` is "manufacturer model", `color` is copied over,
+and the tensions are the saved preference.
+
 ## Orders
 
 | Method | Path | Body | Notes |
@@ -147,6 +177,7 @@ Results mix two kinds of record and the client branches on `is_claimed`:
       "id": "uuid",
       "sport": "tennis",
       "model": "Babolat Pure Aero 98",
+      "color": "Yellow / Black",       // may be ""
       "main_tension": 52,
       "cross_tension": 50,
       "notes": "Logo stencil please.",

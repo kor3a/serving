@@ -214,14 +214,8 @@ private func previewBuilder() -> OrderBuilder {
     let business = MockData.baselineStringLab()
     let builder = OrderBuilder(business: business)
     let product = business.inventory[0]
-    builder.addRacquet(
-        RacquetItem(
-            sport: .tennis,
-            model: "Babolat Pure Aero 98",
-            stringSelection: .fromStorefront(productID: product.id, productName: product.displayName, price: product.price),
-            mainTension: 52,
-            crossTension: 50
-        )
-    )
+    let racquet = MockData.makePlayerRacquets()[0]
+    builder.select(racquet)
+    builder.setString(product, for: racquet)
     return builder
 }
