@@ -10,6 +10,7 @@ Two rules matter more than anything else here:
 
 from decimal import Decimal
 
+from django.urls import reverse
 from rest_framework import serializers
 
 from .models import (
@@ -129,6 +130,7 @@ class StringingServiceSerializer(serializers.ModelSerializer):
 
 class StringProductSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(required=False)
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = StringProduct
@@ -143,7 +145,19 @@ class StringProductSerializer(serializers.ModelSerializer):
             "stock_count",
             "details",
             "is_active",
+            "image_url",
         ]
+
+    def get_image_url(self, product):
+        """Root-relative, so it works on whatever host the app reached us at.
+
+        The `v` query changes with every upload, which lets the image endpoint
+        tell clients to cache each URL indefinitely.
+        """
+        if product.image_updated_at is None:
+            return None
+        path = reverse("product-image", args=[product.id])
+        return f"{path}?v={int(product.image_updated_at.timestamp() * 1000)}"
 
 
 class BusinessSerializer(serializers.ModelSerializer):

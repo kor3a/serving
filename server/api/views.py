@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db import transaction
 from django.db.models import F, Q, Sum
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import serializers, status
@@ -38,6 +39,7 @@ from .models import (
     StringingService,
     StringKind,
     StringProduct,
+    StringProductImage,
     User,
 )
 from .pricing import compute_breakdown, money
@@ -456,6 +458,81 @@ def delete_product(request, business_id, product_id):
 
     StringProduct.objects.filter(id=product_id, business=business).delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# The app scales photos to ~1200px JPEGs before uploading, which lands far
+# below this; the cap only stops a misbehaving client filling the database.
+MAX_PRODUCT_IMAGE_BYTES = 2 * 1024 * 1024
+
+# Magic numbers, so a mislabelled upload can't be served back as an image.
+IMAGE_SIGNATURES = {
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/png": b"\x89PNG\r\n\x1a\n",
+}
+
+
+@api_view(["PUT", "DELETE"])
+def product_image_upload(request, business_id, product_id):
+    """PUT the raw image bytes (Content-Type image/jpeg or image/png) to set a
+    listing's photo; DELETE removes it. Both return the updated product."""
+    business = _own_business_or_403(request, business_id)
+    if isinstance(business, Response):
+        return business
+    product = get_object_or_404(StringProduct, id=product_id, business=business)
+
+    if request.method == "DELETE":
+        StringProductImage.objects.filter(product=product).delete()
+        product.image_updated_at = None
+        product.save(update_fields=["image_updated_at"])
+        return Response(StringProductSerializer(product).data)
+
+    content_type = (request.content_type or "").split(";")[0].strip().lower()
+    signature = IMAGE_SIGNATURES.get(content_type)
+    if signature is None:
+        return Response(
+            {"detail": "Upload the photo as a JPEG or PNG."},
+            status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
+    # Read the raw body; touching request.data would run DRF's JSON parsers.
+    data = request.body
+    if not data:
+        return Response({"detail": "The photo was empty."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(data) > MAX_PRODUCT_IMAGE_BYTES:
+        return Response(
+            {"detail": "That photo is too large. Try a smaller one."},
+            status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        )
+    if not data.startswith(signature):
+        return Response(
+            {"detail": "That file isn't a valid image."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    with transaction.atomic():
+        StringProductImage.objects.update_or_create(
+            product=product, defaults={"data": data, "content_type": content_type}
+        )
+        product.image_updated_at = timezone.now()
+        product.save(update_fields=["image_updated_at"])
+    return Response(StringProductSerializer(product).data)
+
+
+def product_image(request, product_id):
+    """Public, unauthenticated — the storefront shows it to every player.
+
+    A plain Django view rather than DRF: it returns bytes, not JSON, and the
+    versioned URL means the response never changes, so it can be cached for
+    good.
+    """
+    if request.method not in ("GET", "HEAD"):
+        return HttpResponse(status=405)
+    image = StringProductImage.objects.filter(product_id=product_id).first()
+    if image is None:
+        raise Http404
+    response = HttpResponse(bytes(image.data), content_type=image.content_type)
+    response["Cache-Control"] = "public, max-age=31536000, immutable"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @api_view(["PUT"])

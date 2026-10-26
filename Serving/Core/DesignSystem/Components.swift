@@ -151,6 +151,88 @@ struct RacquetGlyph: View {
     }
 }
 
+/// A coiled set of string seen end-on, drawn in code. Stands in for a
+/// listing's photo until the shop adds one.
+struct StringCoilGlyph: View {
+    var tint: Color = Theme.accent
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = min(proxy.size.width, proxy.size.height)
+            let lineWidth = max(1, size * 0.035)
+            ZStack {
+                ForEach(0..<4) { ring in
+                    Circle()
+                        .stroke(tint.opacity(0.9 - Double(ring) * 0.15), lineWidth: lineWidth)
+                        .frame(width: size * (0.92 - CGFloat(ring) * 0.16))
+                }
+                // The loose end of the set.
+                Capsule()
+                    .fill(tint.opacity(0.9))
+                    .frame(width: size * 0.34, height: lineWidth)
+                    .offset(x: size * 0.36, y: size * 0.46)
+                    .rotationEffect(.degrees(-28))
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A string listing's photo, filling whatever frame the caller gives it.
+/// Falls back to a category-tinted coil when the shop hasn't added one or it
+/// fails to load.
+struct StringPhoto: View {
+    let product: StringProduct
+    /// A photo picked in the editor but not uploaded yet; shown instead of
+    /// the product's own.
+    var localImage: UIImage?
+    var cornerRadius: CGFloat = Theme.Radius.small
+
+    var body: some View {
+        placeholder
+            .overlay {
+                if let localImage {
+                    Image(uiImage: localImage)
+                        .resizable()
+                        .scaledToFill()
+                } else if let url = product.imageURL {
+                    AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
+                        switch phase {
+                        case let .success(image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .empty:
+                            ProgressView()
+                                .tint(product.category.tint)
+                        default:
+                            Color.clear
+                        }
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .accessibilityElement()
+            .accessibilityLabel(hasPhoto ? "Photo of \(product.displayName)" : "No photo")
+    }
+
+    private var hasPhoto: Bool { localImage != nil || product.imageURL != nil }
+
+    private var placeholder: some View {
+        Rectangle()
+            .fill(product.category.tint.opacity(0.1))
+            .overlay {
+                GeometryReader { proxy in
+                    let side = min(proxy.size.width, proxy.size.height) * 0.48
+                    StringCoilGlyph(tint: product.category.tint.opacity(hasPhoto ? 0.35 : 0.8))
+                        .frame(width: side, height: side)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+    }
+}
+
 struct Badge: View {
     let text: String
     var tint: Color = Theme.accent

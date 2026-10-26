@@ -666,6 +666,56 @@ class ServingFlowTests(APITestCase):
         self.assertEqual(deleted.status_code, 204)
         self.assertFalse(StringProduct.objects.filter(id=product_id).exists())
 
+    def test_product_image_upload_serve_and_remove(self):
+        self.as_owner()
+        url = f"/v1/businesses/{self.business.id}/products/{self.product.id}/image/"
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+
+        listed = self.client.get(f"/v1/businesses/{self.business.id}/")
+        self.assertIsNone(listed.data["inventory"][0]["image_url"])
+
+        uploaded = self.client.generic("PUT", url, jpeg, content_type="image/jpeg")
+        self.assertEqual(uploaded.status_code, 200, uploaded.data)
+        image_url = uploaded.data["image_url"]
+        self.assertTrue(image_url.startswith(f"/v1/products/{self.product.id}/image/?v="))
+
+        # The storefront carries the same URL, and anyone can fetch it.
+        listed = self.client.get(f"/v1/businesses/{self.business.id}/")
+        self.assertEqual(listed.data["inventory"][0]["image_url"], image_url)
+        self.client.credentials()
+        served = self.client.get(image_url)
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served["Content-Type"], "image/jpeg")
+        self.assertEqual(served.content, jpeg)
+
+        # Saving the listing's text leaves the photo alone.
+        self.as_owner()
+        self.client.put(
+            f"/v1/businesses/{self.business.id}/products/",
+            {"id": str(self.product.id), "brand": "Luxilon", "name": "ALU Power Rough",
+             "category": "polyester", "price": "25.00", "image_url": None},
+            format="json",
+        )
+        self.product.refresh_from_db()
+        self.assertIsNotNone(self.product.image_updated_at)
+
+        removed = self.client.delete(url)
+        self.assertEqual(removed.status_code, 200)
+        self.assertIsNone(removed.data["image_url"])
+        self.assertEqual(self.client.get(f"/v1/products/{self.product.id}/image/").status_code, 404)
+
+    def test_product_image_rejects_non_images(self):
+        self.as_owner()
+        url = f"/v1/businesses/{self.business.id}/products/{self.product.id}/image/"
+        wrong_type = self.client.generic("PUT", url, b"<svg/>", content_type="image/svg+xml")
+        self.assertEqual(wrong_type.status_code, 415)
+        mislabelled = self.client.generic("PUT", url, b"<html>", content_type="image/jpeg")
+        self.assertEqual(mislabelled.status_code, 400)
+
+        self.as_player()
+        forbidden = self.client.generic("PUT", url, b"\xff\xd8\xff", content_type="image/jpeg")
+        self.assertEqual(forbidden.status_code, 403)
+
     def test_cannot_edit_another_shops_storefront(self):
         self.as_player()
         response = self.client.put(

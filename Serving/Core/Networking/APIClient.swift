@@ -109,10 +109,11 @@ final class APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 30
+        // Photo uploads over a slow connection need longer than JSON calls.
+        request.timeoutInterval = endpoint.body.map { $0.count > 100_000 ? 90 : 30 } ?? 30
 
         if let body = endpoint.body {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(endpoint.contentType, forHTTPHeaderField: "Content-Type")
             request.httpBody = body
         }
         if endpoint.requiresAuth, let token = tokenStore.accessToken {

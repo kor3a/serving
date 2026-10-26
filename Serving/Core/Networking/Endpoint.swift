@@ -14,6 +14,8 @@ struct Endpoint {
     var requiresAuth: Bool = true
     var queryItems: [URLQueryItem] = []
     var body: Data?
+    /// Sent with `body`. Everything is JSON except image uploads.
+    var contentType = "application/json"
 
     static func encoding<Body: Encodable>(
         _ body: Body,
@@ -55,6 +57,9 @@ enum Routes {
     static func businessProducts(_ id: UUID) -> String { "businesses/\(id.uuidString.lowercased())/products/" }
     static func businessProduct(_ businessID: UUID, _ productID: UUID) -> String {
         "businesses/\(businessID.uuidString.lowercased())/products/\(productID.uuidString.lowercased())/"
+    }
+    static func businessProductImage(_ businessID: UUID, _ productID: UUID) -> String {
+        businessProduct(businessID, productID) + "image/"
     }
     static func businessServices(_ id: UUID) -> String { "businesses/\(id.uuidString.lowercased())/services/" }
     static func businessService(_ businessID: UUID, _ serviceID: UUID) -> String {

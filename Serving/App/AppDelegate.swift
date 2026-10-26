@@ -7,6 +7,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         PushService.shared.configure()
+        // Storefront string photos are served with long-lived cache headers;
+        // the default cache is too small to keep a shop's worth of them.
+        URLCache.shared = URLCache(memoryCapacity: 30 * 1024 * 1024, diskCapacity: 150 * 1024 * 1024)
         return true
     }
 

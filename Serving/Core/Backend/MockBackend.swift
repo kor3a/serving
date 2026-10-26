@@ -318,10 +318,33 @@ final class MockBackend: Backend {
         await latency(0.4)
         return try mutateBusiness(businessID) { business in
             if let index = business.inventory.firstIndex(where: { $0.id == product.id }) {
+                // Like the server, saving the listing never touches its photo.
+                var product = product
+                product.imagePath = business.inventory[index].imagePath
                 business.inventory[index] = product
             } else {
                 business.inventory.append(product)
             }
+        }
+    }
+
+    func uploadProductImage(_ jpegData: Data, productID: UUID, businessID: UUID) async throws -> StringerBusiness {
+        await latency(0.6)
+        // A fresh file name per upload stands in for the server's versioned URL.
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("product-\(productID.uuidString)-\(UUID().uuidString).jpg")
+        try jpegData.write(to: file)
+        return try mutateBusiness(businessID) { business in
+            guard let index = business.inventory.firstIndex(where: { $0.id == productID }) else { return }
+            business.inventory[index].imagePath = file.absoluteString
+        }
+    }
+
+    func deleteProductImage(productID: UUID, businessID: UUID) async throws -> StringerBusiness {
+        await latency(0.3)
+        return try mutateBusiness(businessID) { business in
+            guard let index = business.inventory.firstIndex(where: { $0.id == productID }) else { return }
+            business.inventory[index].imagePath = nil
         }
     }
 

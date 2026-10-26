@@ -38,13 +38,13 @@ struct BusinessStorefrontView: View {
             .refreshable { await businessStore.load() }
             .errorAlert(message: $businessStore.errorMessage)
             .sheet(isPresented: $isAddingProduct) {
-                MerchandiseEditorView(product: nil) { product in
-                    Task { await businessStore.saveProduct(product) }
+                MerchandiseEditorView(product: nil) { product, image in
+                    Task { await businessStore.saveProduct(product, image: image) }
                 }
             }
             .sheet(item: $editingProduct) { product in
-                MerchandiseEditorView(product: product) { updated in
-                    Task { await businessStore.saveProduct(updated) }
+                MerchandiseEditorView(product: product) { updated, image in
+                    Task { await businessStore.saveProduct(updated, image: image) }
                 }
             }
             .sheet(isPresented: $isAddingService) {
@@ -174,7 +174,7 @@ struct BusinessStorefrontView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             SectionHeader(
                 title: "Merchandise",
-                subtitle: "\(business.inventory.count) string listing(s)",
+                subtitle: merchandiseSubtitle(business),
                 actionTitle: "New",
                 action: { isAddingProduct = true }
             )
@@ -192,7 +192,7 @@ struct BusinessStorefrontView: View {
                                 Text("List your first string")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(Theme.primaryText)
-                                Text("Players can pick it at checkout, or bring their own.")
+                                Text("Add a photo of the packet — players see it on your storefront.")
                                     .font(.caption)
                                     .foregroundStyle(Theme.secondaryText)
                             }
@@ -208,6 +208,8 @@ struct BusinessStorefrontView: View {
                     } label: {
                         Card(padding: Theme.Spacing.md) {
                             HStack(alignment: .top, spacing: Theme.Spacing.md) {
+                                productThumbnail(product)
+
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 6) {
                                         Text(product.displayName)
@@ -217,11 +219,20 @@ struct BusinessStorefrontView: View {
                                             Badge(text: "Hidden", tint: Theme.secondaryText)
                                         }
                                     }
-                                    HStack(spacing: 6) {
-                                        Badge(text: product.category.label, tint: product.category.tint)
-                                        Text(product.gauge)
-                                            .font(.caption)
-                                            .foregroundStyle(Theme.secondaryText)
+                                    // Beside the thumbnail there's room for the
+                                    // badge and gauge on one line only sometimes.
+                                    ViewThatFits(in: .horizontal) {
+                                        HStack(spacing: 6) {
+                                            categoryAndGauge(product)
+                                        }
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            categoryAndGauge(product)
+                                        }
+                                    }
+                                    if product.imageURL == nil && !businessStore.uploadingImageProductIDs.contains(product.id) {
+                                        Label("Add a photo", systemImage: "camera")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(Theme.accent)
                                     }
                                 }
                                 Spacer(minLength: 0)
@@ -245,6 +256,38 @@ struct BusinessStorefrontView: View {
                 }
             }
         }
+    }
+}
+
+extension BusinessStorefrontView {
+
+    private func merchandiseSubtitle(_ business: StringerBusiness) -> String {
+        let count = business.inventory.count
+        let listings = "\(count) string listing\(count == 1 ? "" : "s")"
+        let missing = business.inventory.filter { $0.imageURL == nil }.count
+        return missing == 0 ? listings : "\(listings) · \(missing) without a photo"
+    }
+
+    @ViewBuilder
+    private func categoryAndGauge(_ product: StringProduct) -> some View {
+        Badge(text: product.category.label, tint: product.category.tint)
+            .fixedSize()
+        Text(product.gauge)
+            .font(.caption)
+            .foregroundStyle(Theme.secondaryText)
+            .lineLimit(1)
+    }
+
+    private func productThumbnail(_ product: StringProduct) -> some View {
+        StringPhoto(product: product)
+            .frame(width: 56, height: 56)
+            .overlay {
+                if businessStore.uploadingImageProductIDs.contains(product.id) {
+                    RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    ProgressView()
+                }
+            }
     }
 }
 
