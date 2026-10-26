@@ -588,5 +588,6 @@ extension FilterChip where Icon == EmptyView {
     DiscoverView()
         .environmentObject(DiscoverStore(backend: AppEnvironment.previewBackend()))
         .environmentObject(RacquetStore(backend: AppEnvironment.previewBackend()))
+        .environmentObject(CartStore())
         .environmentObject(LocationService())
 }
