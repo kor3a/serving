@@ -336,6 +336,11 @@ struct StringProduct: Identifiable, Codable, Hashable {
     var stockCount: Int
     var details: String
     var isActive: Bool
+    /// Where the shop's photo of the packet lives, or nil when there is none.
+    /// The server sends a root-relative path (`/v1/products/…/image/?v=…`) so
+    /// it works on whichever host the app reached; read `imageURL` instead.
+    /// Changed only through the image upload calls, never by saving the listing.
+    var imagePath: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -348,6 +353,7 @@ struct StringProduct: Identifiable, Codable, Hashable {
         case stockCount = "stock_count"
         case details
         case isActive = "is_active"
+        case imagePath = "image_url"
     }
 
     init(
@@ -360,7 +366,8 @@ struct StringProduct: Identifiable, Codable, Hashable {
         price: Decimal,
         stockCount: Int = 0,
         details: String = "",
-        isActive: Bool = true
+        isActive: Bool = true,
+        imagePath: String? = nil
     ) {
         self.id = id
         self.brand = brand
@@ -372,10 +379,18 @@ struct StringProduct: Identifiable, Codable, Hashable {
         self.stockCount = stockCount
         self.details = details
         self.isActive = isActive
+        self.imagePath = imagePath
     }
 
     var displayName: String { "\(brand) \(name)" }
     var inStock: Bool { stockCount > 0 }
+
+    /// `imagePath` resolved against the API host. An absolute path (a CDN, or
+    /// the mock backend's file URLs) passes through unchanged.
+    var imageURL: URL? {
+        guard let imagePath, !imagePath.isEmpty else { return nil }
+        return URL(string: imagePath, relativeTo: AppConfig.apiBaseURL)?.absoluteURL
+    }
 }
 
 /// Numbers behind the business dashboard's earnings + payout cards.

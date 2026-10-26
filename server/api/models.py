@@ -270,12 +270,33 @@ class StringProduct(models.Model):
     details = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Set whenever the photo changes. It versions the image URL, so the app
+    # can cache a photo forever and still pick up a replacement.
+    image_updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["brand", "name"]
 
     def __str__(self):
         return f"{self.brand} {self.name}"
+
+
+class StringProductImage(models.Model):
+    """The photo a shop uploaded for a listing.
+
+    Kept out of `StringProduct` so loading a storefront's inventory never pulls
+    the bytes; only the image endpoint reads this table. The app uploads a
+    JPEG it has already scaled down, so rows stay well under a megabyte.
+    """
+
+    product = models.OneToOneField(
+        StringProduct, on_delete=models.CASCADE, primary_key=True, related_name="image"
+    )
+    data = models.BinaryField()
+    content_type = models.CharField(max_length=32, default="image/jpeg")
+
+    def __str__(self):
+        return f"Photo of {self.product}"
 
 
 # ---------------------------------------------------------------- player racquets

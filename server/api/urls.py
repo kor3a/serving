@@ -37,9 +37,12 @@ urlpatterns = [
     # Storefront management
     path("businesses/<uuid:business_id>/products/", views.upsert_product),
     path("businesses/<uuid:business_id>/products/<uuid:product_id>/", views.delete_product),
+    path("businesses/<uuid:business_id>/products/<uuid:product_id>/image/", views.product_image_upload),
     path("businesses/<uuid:business_id>/services/", views.upsert_service),
     path("businesses/<uuid:business_id>/services/<uuid:service_id>/", views.delete_service),
     path("businesses/<uuid:business_id>/earnings/", views.business_earnings),
+    # Public: what `image_url` on a product points at.
+    path("products/<uuid:product_id>/image/", views.product_image, name="product-image"),
 
     # Orders
     path("orders/", views.orders_collection),

@@ -33,6 +33,8 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Serving uses the camera to photograph the strings you list on your storefront.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Serving uses Face ID to unlock your account.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

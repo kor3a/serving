@@ -108,7 +108,8 @@ Results mix two kinds of record and the client branches on `is_claimed`:
   "inventory": [
     {"id": "uuid", "brand": "Luxilon", "name": "ALU Power", "category": "polyester",
      "sport": "tennis", "gauge": "16L / 1.25mm", "price": 24, "stock_count": 14,
-     "details": "…", "is_active": true}
+     "details": "…", "is_active": true,
+     "image_url": "/v1/products/uuid/image/?v=1761500000000"}   // null when no photo
   ],
   "open_hours": [
     {"weekday": 1, "opens_at_minutes": 600, "closes_at_minutes": 1140, "is_closed": true}
@@ -265,9 +266,17 @@ bring_your_own_string_fee` — the service fee is Serving's.
 | PATCH | `businesses/{id}/` | Partial `Business` |
 | PUT | `businesses/{id}/products/` | `StringProduct` (upsert by id) |
 | DELETE | `businesses/{id}/products/{product_id}/` | — |
+| PUT | `businesses/{id}/products/{product_id}/image/` | Raw JPEG or PNG bytes (≤ 2 MB), `Content-Type: image/jpeg` or `image/png` |
+| DELETE | `businesses/{id}/products/{product_id}/image/` | — |
 | PUT | `businesses/{id}/services/` | `StringingService` (upsert by id) |
 | DELETE | `businesses/{id}/services/{service_id}/` | — |
 | GET | `businesses/{id}/earnings/` | — |
+
+Both image calls return the updated `StringProduct`. Its `image_url` is
+root-relative (`/v1/products/{product_id}/image/?v=1761500000000`) or `null`,
+and the app resolves it against the API host. That URL is public and
+unauthenticated; the `v` changes with every upload, so the response is served
+with `Cache-Control: immutable`.
 
 `earnings`:
 

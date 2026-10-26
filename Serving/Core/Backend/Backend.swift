@@ -65,6 +65,9 @@ protocol Backend: AnyObject {
     func updateBusinessProfile(_ business: StringerBusiness) async throws -> StringerBusiness
     func upsertProduct(_ product: StringProduct, businessID: UUID) async throws -> StringerBusiness
     func deleteProduct(id: UUID, businessID: UUID) async throws -> StringerBusiness
+    /// Sets a listing's photo. `jpegData` is already scaled down for upload.
+    func uploadProductImage(_ jpegData: Data, productID: UUID, businessID: UUID) async throws -> StringerBusiness
+    func deleteProductImage(productID: UUID, businessID: UUID) async throws -> StringerBusiness
     func upsertService(_ service: StringingService, businessID: UUID) async throws -> StringerBusiness
     func deleteService(id: UUID, businessID: UUID) async throws -> StringerBusiness
     func earnings(businessID: UUID) async throws -> EarningsSnapshot

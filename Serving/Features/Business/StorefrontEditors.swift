@@ -1,12 +1,25 @@
+import ImageIO
+import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// What the merchandise editor did to a listing's photo.
+enum ProductImageChange {
+    case unchanged
+    /// A JPEG already scaled down for upload.
+    case replace(Data)
+    case remove
+}
 
 /// Create or edit a string listing.
 struct MerchandiseEditorView: View {
 
     let existing: StringProduct?
-    let onSave: (StringProduct) -> Void
+    let onSave: (StringProduct, ProductImageChange) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    /// Fixed up front so a new listing keeps one id across re-renders.
+    @State private var productID: UUID
     @State private var brand: String
     @State private var name: String
     @State private var category: StringCategory
@@ -17,9 +30,19 @@ struct MerchandiseEditorView: View {
     @State private var details: String
     @State private var isActive: Bool
 
-    init(product: StringProduct?, onSave: @escaping (StringProduct) -> Void) {
+    @State private var photoItem: PhotosPickerItem?
+    @State private var isShowingCamera = false
+    @State private var isPreparingPhoto = false
+    @State private var photoError: String?
+    /// The new photo, ready to upload, and the same bytes decoded for preview.
+    @State private var pickedJPEG: Data?
+    @State private var pickedImage: UIImage?
+    @State private var removesPhoto = false
+
+    init(product: StringProduct?, onSave: @escaping (StringProduct, ProductImageChange) -> Void) {
         self.existing = product
         self.onSave = onSave
+        _productID = State(initialValue: product?.id ?? UUID())
         _brand = State(initialValue: product?.brand ?? "")
         _name = State(initialValue: product?.name ?? "")
         _category = State(initialValue: product?.category ?? .polyester)
@@ -36,12 +59,41 @@ struct MerchandiseEditorView: View {
     }
 
     private var canSave: Bool {
-        !brand.trimmed.isEmpty && !name.trimmed.isEmpty && (price ?? 0) > 0
+        !brand.trimmed.isEmpty && !name.trimmed.isEmpty && (price ?? 0) > 0 && !isPreparingPhoto
+    }
+
+    private var hasPhoto: Bool {
+        pickedImage != nil || (!removesPhoto && existing?.imageURL != nil)
+    }
+
+    private var imageChange: ProductImageChange {
+        if let pickedJPEG { return .replace(pickedJPEG) }
+        if removesPhoto && existing?.imagePath != nil { return .remove }
+        return .unchanged
+    }
+
+    /// The listing as the form stands, which the photo preview tints from.
+    private var draft: StringProduct {
+        StringProduct(
+            id: productID,
+            brand: brand.trimmed,
+            name: name.trimmed,
+            category: category,
+            sport: sport,
+            gauge: gauge.trimmed,
+            price: (price ?? 0).roundedToCents,
+            stockCount: stockCount,
+            details: details.trimmed,
+            isActive: isActive,
+            imagePath: removesPhoto ? nil : existing?.imagePath
+        )
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                photoSection
+
                 Section("String") {
                     TextField("Brand", text: $brand)
                         .textInputAutocapitalization(.words)
@@ -93,24 +145,172 @@ struct MerchandiseEditorView: View {
                         .disabled(!canSave)
                 }
             }
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                Task { await loadPhoto(from: item) }
+            }
+            .fullScreenCover(isPresented: $isShowingCamera) {
+                CameraPicker { image in
+                    guard let data = image.jpegData(compressionQuality: 0.95) else { return }
+                    Task { await usePhoto(data) }
+                }
+                .ignoresSafeArea()
+            }
+            .errorAlert(message: $photoError)
         }
     }
 
+    // MARK: - Photo
+
+    private var photoSection: some View {
+        Section {
+            HStack {
+                Spacer(minLength: 0)
+                StringPhoto(product: draft, localImage: pickedImage, cornerRadius: Theme.Radius.medium)
+                    .frame(width: 180, height: 180)
+                    .overlay {
+                        if isPreparingPhoto {
+                            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                            ProgressView()
+                        }
+                    }
+                Spacer(minLength: 0)
+            }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: Theme.Spacing.sm, leading: 0, bottom: Theme.Spacing.sm, trailing: 0))
+
+            PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                Label(hasPhoto ? "Replace photo" : "Choose from library", systemImage: "photo.on.rectangle")
+            }
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button {
+                    isShowingCamera = true
+                } label: {
+                    Label("Take photo", systemImage: "camera")
+                }
+            }
+            if hasPhoto {
+                Button(role: .destructive) {
+                    pickedJPEG = nil
+                    pickedImage = nil
+                    removesPhoto = true
+                } label: {
+                    Label("Remove photo", systemImage: "trash")
+                        .foregroundStyle(Theme.danger)
+                }
+            }
+        } header: {
+            Text("Photo")
+        } footer: {
+            Text("Players see this in Strings in stock. A clear, well-lit shot of the packet works best.")
+        }
+        .disabled(isPreparingPhoto)
+    }
+
+    private func loadPhoto(from item: PhotosPickerItem) async {
+        defer { photoItem = nil }
+        isPreparingPhoto = true
+        guard let data = try? await item.loadTransferable(type: Data.self) else {
+            isPreparingPhoto = false
+            photoError = "That photo couldn't be loaded. Try another one."
+            return
+        }
+        await usePhoto(data)
+    }
+
+    private func usePhoto(_ data: Data) async {
+        isPreparingPhoto = true
+        defer { isPreparingPhoto = false }
+        let jpeg = await Task.detached(priority: .userInitiated) {
+            ProductPhotoProcessor.uploadJPEG(from: data)
+        }.value
+        guard let jpeg, let image = UIImage(data: jpeg) else {
+            photoError = "That photo couldn't be used. Try another one."
+            return
+        }
+        pickedJPEG = jpeg
+        pickedImage = image
+        removesPhoto = false
+    }
+
     private func save() {
-        let product = StringProduct(
-            id: existing?.id ?? UUID(),
-            brand: brand.trimmed,
-            name: name.trimmed,
-            category: category,
-            sport: sport,
-            gauge: gauge.trimmed,
-            price: (price ?? 0).roundedToCents,
-            stockCount: stockCount,
-            details: details.trimmed,
-            isActive: isActive
-        )
-        onSave(product)
+        onSave(draft, imageChange)
         dismiss()
+    }
+}
+
+/// Turns whatever the library or camera hands back (HEIC, a 48 MP JPEG, a
+/// screenshot PNG) into the small JPEG the server stores.
+enum ProductPhotoProcessor {
+
+    /// Longest side, in pixels. Storefront tiles are about 170 pt wide, so
+    /// this is sharp at 3x with room to spare for the detail view.
+    static let maxPixelSize = 1200
+
+    static func uploadJPEG(from data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        // Decodes straight to the target size and bakes in the EXIF rotation,
+        // without ever holding the full-resolution bitmap.
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
+
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output, UTType.jpeg.identifier as CFString, 1, nil
+        ) else { return nil }
+        CGImageDestinationAddImage(
+            destination, thumbnail, [kCGImageDestinationLossyCompressionQuality: 0.8] as CFDictionary
+        )
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return output as Data
+    }
+}
+
+/// The system camera, for photographing a packet in the shop.
+private struct CameraPicker: UIViewControllerRepresentable {
+    let onCapture: (UIImage) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
+
+        init(_ parent: CameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onCapture(image)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }
 
@@ -310,7 +510,7 @@ struct BusinessProfileEditorView: View {
 }
 
 #Preview("Merchandise editor") {
-    MerchandiseEditorView(product: MockData.baselineStringLab().inventory.first) { _ in }
+    MerchandiseEditorView(product: MockData.baselineStringLab().inventory.first) { _, _ in }
 }
 
 #Preview("Profile editor") {

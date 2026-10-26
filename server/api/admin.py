@@ -51,6 +51,7 @@ class ServiceInline(admin.TabularInline):
 class ProductInline(admin.TabularInline):
     model = StringProduct
     extra = 0
+    exclude = ["image_updated_at"]
 
 
 @admin.register(Business)

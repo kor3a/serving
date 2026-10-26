@@ -8,6 +8,8 @@ final class BusinessStore: ObservableObject {
     @Published private(set) var business: StringerBusiness?
     @Published private(set) var earnings: EarningsSnapshot = .empty
     @Published private(set) var isLoading = false
+    /// Listings whose photo is still uploading, so their rows can show it.
+    @Published private(set) var uploadingImageProductIDs: Set<UUID> = []
     @Published var errorMessage: String?
 
     private let backend: Backend
@@ -45,9 +47,26 @@ final class BusinessStore: ObservableObject {
         await apply { try await self.backend.updateBusinessProfile(updated) }
     }
 
-    func saveProduct(_ product: StringProduct) async {
+    /// Saves the listing, then applies any photo change. The listing lands
+    /// first so it shows up straight away while the photo is still uploading
+    /// — and a new listing must exist before it can be given a photo.
+    func saveProduct(_ product: StringProduct, image: ProductImageChange = .unchanged) async {
         guard let businessID else { return }
         await apply { try await self.backend.upsertProduct(product, businessID: businessID) }
+        guard business?.inventory.contains(where: { $0.id == product.id }) == true else { return }
+
+        switch image {
+        case .unchanged:
+            return
+        case let .replace(jpegData):
+            uploadingImageProductIDs.insert(product.id)
+            defer { uploadingImageProductIDs.remove(product.id) }
+            await apply {
+                try await self.backend.uploadProductImage(jpegData, productID: product.id, businessID: businessID)
+            }
+        case .remove:
+            await apply { try await self.backend.deleteProductImage(productID: product.id, businessID: businessID) }
+        }
     }
 
     func deleteProduct(id: UUID) async {

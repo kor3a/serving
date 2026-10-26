@@ -12,6 +12,8 @@ struct StorefrontView: View {
     @State private var isAddingRacquet = false
     /// Which selected racquet "Strings in stock" is choosing for.
     @State private var stringTargetID: UUID?
+    /// The string open in the detail sheet.
+    @State private var detailProduct: StringProduct?
     @Environment(\.openURL) private var openURL
 
     init(business: StringerBusiness) {
@@ -44,6 +46,9 @@ struct StorefrontView: View {
         }
         .sheet(item: $editingRacquet) { racquet in
             RacquetEditorView(racquet: racquet, isNew: false)
+        }
+        .sheet(item: $detailProduct) { product in
+            stringDetail(product)
         }
         .onAppear(perform: preselectOnlyRacquet)
         .onChange(of: savedRacquets.racquets) { _, saved in
@@ -309,13 +314,10 @@ struct StorefrontView: View {
             }
         }
 
-        ForEach(strings) { product in
-            Button {
-                builder.setString(product, for: racquet)
-            } label: {
-                stringCard(product, isSelected: selection?.productID == product.id)
-            }
-            .buttonStyle(.plain)
+        stringGrid(strings) { product in
+            selection?.productID == product.id
+        } onTap: { product in
+            builder.setString(product, for: racquet)
         }
 
         if business.acceptsBringYourOwnString {
@@ -392,8 +394,8 @@ struct StorefrontView: View {
                     .foregroundStyle(Theme.secondaryText)
             }
         } else {
-            ForEach(builder.availableStrings) { product in
-                stringCard(product, isSelected: nil)
+            stringGrid(builder.availableStrings, isSelected: nil) { product in
+                detailProduct = product
             }
         }
 
@@ -418,48 +420,142 @@ struct StorefrontView: View {
         }
     }
 
-    /// A stocked string. `isSelected` is nil when it is shown for browsing
-    /// only, with no radio button.
-    private func stringCard(_ product: StringProduct, isSelected: Bool?) -> some View {
-        Card(padding: Theme.Spacing.md) {
-            HStack(alignment: .top, spacing: Theme.Spacing.md) {
-                if let isSelected {
-                    Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isSelected ? Theme.accent : Theme.separator)
+    private let stringColumns = [
+        GridItem(.flexible(), spacing: Theme.Spacing.md, alignment: .top),
+        GridItem(.flexible(), spacing: Theme.Spacing.md, alignment: .top),
+    ]
+
+    /// The shop's strings as photo tiles. With `isSelected` nil the grid is for
+    /// browsing — tapping opens the details; otherwise tapping picks the
+    /// string, and the ⓘ button opens the details.
+    private func stringGrid(
+        _ products: [StringProduct],
+        isSelected: ((StringProduct) -> Bool)?,
+        onTap: @escaping (StringProduct) -> Void
+    ) -> some View {
+        LazyVGrid(columns: stringColumns, spacing: Theme.Spacing.md) {
+            ForEach(products) { product in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { onTap(product) }
+                } label: {
+                    stringTile(product, isSelected: isSelected?(product))
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(product.displayName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.primaryText)
-                    HStack(spacing: 6) {
-                        Badge(text: product.category.label, tint: product.category.tint)
-                        Text(product.gauge)
-                            .font(.caption)
-                            .foregroundStyle(Theme.secondaryText)
+                .buttonStyle(.plain)
+                .overlay(alignment: .top) {
+                    // Sits on the photo's bottom corner. A sibling of the
+                    // tile's button rather than inside it, so it gets its own tap.
+                    if isSelected != nil {
+                        Color.clear
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay(alignment: .bottomTrailing) {
+                                Button {
+                                    detailProduct = product
+                                } label: {
+                                    Image(systemName: "info")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(Theme.primaryText)
+                                        .frame(width: 28, height: 28)
+                                        .background(Circle().fill(.ultraThinMaterial))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Details for \(product.displayName)")
+                                .padding(Theme.Spacing.sm)
+                            }
                     }
-                    if !product.details.isEmpty {
-                        Text(product.details)
-                            .font(.caption)
-                            .foregroundStyle(Theme.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                Spacer(minLength: 0)
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(product.price.currencyString)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Theme.primaryText)
-                    Text("\(product.stockCount) left")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondaryText)
                 }
             }
         }
+    }
+
+    /// One string: its photo, then brand, name, gauge and price.
+    private func stringTile(_ product: StringProduct, isSelected: Bool?) -> some View {
+        let isChosen = isSelected == true
+        let isLowStock = product.stockCount <= 3
+
+        return VStack(alignment: .leading, spacing: 0) {
+            StringPhoto(product: product, cornerRadius: 0)
+                .aspectRatio(1, contentMode: .fit)
+                .overlay(alignment: .topTrailing) {
+                    if let isSelected {
+                        ZStack {
+                            Circle()
+                                .fill(isSelected ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.ultraThinMaterial))
+                            Circle()
+                                .stroke(isSelected ? Color.clear : Color.white.opacity(0.9), lineWidth: 1.5)
+                            if isSelected {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .frame(width: 26, height: 26)
+                        // Keeps the empty ring readable on pale photos.
+                        .shadow(color: .black.opacity(isSelected ? 0 : 0.3), radius: 2, y: 1)
+                        .padding(Theme.Spacing.sm)
+                    }
+                }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(product.brand.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.secondaryText)
+                    .lineLimit(1)
+                Text(product.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.primaryText)
+                    .lineLimit(2, reservesSpace: true)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(product.category.tint)
+                        .frame(width: 6, height: 6)
+                    Text([product.category.label, product.gauge].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .lineLimit(1)
+                }
+                HStack(alignment: .firstTextBaseline) {
+                    Text(product.price.currencyString)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Theme.primaryText)
+                    Spacer(minLength: 4)
+                    Text(isLowStock ? "Only \(product.stockCount) left" : "\(product.stockCount) in stock")
+                        .font(.caption2.weight(isLowStock ? .semibold : .regular))
+                        .foregroundStyle(isLowStock ? Theme.warning : Theme.secondaryText)
+                        .lineLimit(1)
+                }
+                .padding(.top, 4)
+            }
+            .padding(Theme.Spacing.sm + 2)
+        }
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
-                .stroke(Theme.accent, lineWidth: isSelected == true ? 1.5 : 0)
+                .stroke(isChosen ? Theme.accent : Theme.separator, lineWidth: isChosen ? 2 : 1)
         )
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isChosen ? .isSelected : [])
+    }
+
+    /// The detail sheet, with a button to pick the string when a racquet of
+    /// that sport is being strung.
+    private func stringDetail(_ product: StringProduct) -> some View {
+        let target = stringTarget.flatMap { $0.sport == product.sport ? $0 : nil }
+        let isChosen = target.map { builder.string(for: $0)?.productID == product.id } ?? false
+
+        return StringDetailSheet(
+            product: product,
+            chooseTitle: target.map { isChosen ? "Chosen for your \($0.displayName)" : "Choose for your \($0.displayName)" },
+            isChosen: isChosen,
+            hint: target == nil ? "Select a \(product.sport.label.lowercased()) racquet above to choose this string." : nil
+        ) {
+            if let target {
+                builder.setString(product, for: target)
+            }
+        }
     }
 
     private var checkoutBar: some View {
@@ -520,6 +616,102 @@ struct StorefrontView: View {
         let digits = business.phone.phoneDigits
         guard !digits.isEmpty, let url = URL(string: "tel://\(digits)") else { return }
         openURL(url)
+    }
+}
+
+/// A stocked string up close: the shop's photo, the full description, and
+/// the price.
+private struct StringDetailSheet: View {
+    let product: StringProduct
+    /// The choose button's title; nil hides it.
+    let chooseTitle: String?
+    let isChosen: Bool
+    /// Shown instead of the button, explaining how to choose.
+    let hint: String?
+    let onChoose: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    StringPhoto(product: product, cornerRadius: Theme.Radius.large)
+                        .aspectRatio(1, contentMode: .fit)
+                        .frame(maxWidth: 360)
+                        .frame(maxWidth: .infinity)
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text(product.brand.uppercased())
+                            .font(.caption.weight(.semibold))
+                            .tracking(0.8)
+                            .foregroundStyle(Theme.secondaryText)
+                        Text(product.name)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(Theme.primaryText)
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Badge(text: product.category.label, tint: product.category.tint)
+                            Badge(text: product.sport.label, tint: Theme.secondaryText)
+                            if !product.gauge.isEmpty {
+                                Badge(text: product.gauge, tint: Theme.secondaryText)
+                            }
+                        }
+                    }
+
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(product.price.currencyString)
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(Theme.primaryText)
+                        Text("per set, plus labor")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                        Spacer()
+                        Text("\(product.stockCount) in stock")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(product.stockCount <= 3 ? Theme.warning : Theme.secondaryText)
+                    }
+
+                    if !product.details.isEmpty {
+                        Text(product.details)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(Theme.Spacing.lg)
+            }
+            .screenBackground()
+            .safeAreaInset(edge: .bottom) {
+                if let chooseTitle {
+                    Button {
+                        onChoose()
+                        dismiss()
+                    } label: {
+                        Label(chooseTitle, systemImage: isChosen ? "checkmark.circle.fill" : "plus.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(isChosen)
+                    .padding(Theme.Spacing.md)
+                    .background(.ultraThinMaterial)
+                } else if let hint {
+                    Text(hint)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(Theme.Spacing.md)
+                        .background(.ultraThinMaterial)
+                }
+            }
+            .navigationTitle(product.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.large])
     }
 }
 

@@ -257,6 +257,27 @@ final class LiveBackend: Backend {
         return try await business(id: businessID)
     }
 
+    func uploadProductImage(_ jpegData: Data, productID: UUID, businessID: UUID) async throws -> StringerBusiness {
+        _ = try await api.send(
+            Endpoint(
+                path: Routes.businessProductImage(businessID, productID),
+                method: .put,
+                body: jpegData,
+                contentType: "image/jpeg"
+            ),
+            as: StringProduct.self
+        )
+        return try await business(id: businessID)
+    }
+
+    func deleteProductImage(productID: UUID, businessID: UUID) async throws -> StringerBusiness {
+        _ = try await api.send(
+            Endpoint(path: Routes.businessProductImage(businessID, productID), method: .delete),
+            as: StringProduct.self
+        )
+        return try await business(id: businessID)
+    }
+
     func upsertService(_ service: StringingService, businessID: UUID) async throws -> StringerBusiness {
         _ = try await api.send(
             .encoding(service, path: Routes.businessServices(businessID), method: .put),
