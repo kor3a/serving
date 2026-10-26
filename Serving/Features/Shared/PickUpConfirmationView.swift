@@ -42,18 +42,15 @@ struct PickUpConfirmationView: View {
                     Button("Close") { dismiss() }
                 }
             }
-            .confirmationDialog(
+            .popup(
                 "Hand over the racquet?",
                 isPresented: $showHandOverDialog,
-                titleVisibility: .visible
-            ) {
-                Button("Racquet handed over") {
+                message: "This closes the order for you and \(order?.playerName ?? "the player").",
+                confirm: PopupAction("Racquet handed over") {
                     Task { await handOver() }
-                }
-                Button("Not yet", role: .cancel) {}
-            } message: {
-                Text("This closes the order for you and \(order?.playerName ?? "the player").")
-            }
+                },
+                cancelTitle: "Not yet"
+            )
             .errorAlert(message: $orders.errorMessage)
         }
     }

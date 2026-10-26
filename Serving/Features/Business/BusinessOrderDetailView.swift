@@ -51,14 +51,15 @@ struct BusinessOrderDetailView: View {
         .fullScreenCover(isPresented: $showPickUpConfirmation) {
             PickUpConfirmationView(orderID: orderID, role: .business)
         }
-        .confirmationDialog("Decline this order?", isPresented: $showDeclineDialog, titleVisibility: .visible) {
-            Button("Decline", role: .destructive) {
+        .popup(
+            "Decline this order?",
+            isPresented: $showDeclineDialog,
+            message: "The player is told you can't take the job. They are not charged.",
+            confirm: PopupAction("Decline", role: .destructive) {
                 Task { await orders.decline(orderID: orderID, reason: nil) }
-            }
-            Button("Keep", role: .cancel) {}
-        } message: {
-            Text("The player is told you can't take the job. They are not charged.")
-        }
+            },
+            cancelTitle: "Keep"
+        )
         .errorAlert(message: $orders.errorMessage)
     }
 

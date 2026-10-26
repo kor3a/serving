@@ -404,24 +404,28 @@ extension View {
     }
 }
 
-/// Presents `BackendError` (and anything else) as an alert.
+/// Presents `BackendError` (and anything else) as a centred pop-up.
 struct ErrorAlert: ViewModifier {
     @Binding var message: String?
 
+    /// Held while the pop-up is up so the text doesn't blank out as
+    /// `message` is cleared and the card animates away.
+    @State private var shownMessage = ""
+
     func body(content: Content) -> some View {
-        content.alert(
-            "Something went wrong",
-            isPresented: Binding(
-                get: { message != nil },
-                set: { if !$0 { message = nil } }
-            ),
-            actions: {
-                Button("OK", role: .cancel) { message = nil }
-            },
-            message: {
-                Text(message ?? "")
+        content
+            .popup(
+                "Something went wrong",
+                isPresented: Binding(
+                    get: { message != nil },
+                    set: { if !$0 { message = nil } }
+                ),
+                message: shownMessage,
+                cancelTitle: "OK"
+            )
+            .onChange(of: message, initial: true) { _, newValue in
+                if let newValue { shownMessage = newValue }
             }
-        )
     }
 }
 

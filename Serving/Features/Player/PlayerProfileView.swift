@@ -53,12 +53,13 @@ struct PlayerProfileView: View {
             }
             .screenBackground()
             .navigationTitle("Profile")
-            .confirmationDialog("Sign out of Serving?", isPresented: $showSignOutDialog, titleVisibility: .visible) {
-                Button("Sign out", role: .destructive) {
+            .popup(
+                "Sign out of Serving?",
+                isPresented: $showSignOutDialog,
+                confirm: PopupAction("Sign out", role: .destructive) {
                     Task { await session.signOut() }
                 }
-                Button("Cancel", role: .cancel) {}
-            }
+            )
             .sheet(isPresented: $isAddingRacquet) {
                 RacquetEditorView()
             }
