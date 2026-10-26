@@ -16,6 +16,9 @@ final class OrderBuilder: ObservableObject {
     @Published var dropOffDate: Date
     @Published var paymentMethod: PaymentMethod = .applePay
     @Published var note: String = ""
+    /// Set once checkout submits this order, so it isn't sent twice and
+    /// doesn't come back into the cart.
+    @Published private(set) var isSubmitted = false
 
     init(business: StringerBusiness) {
         self.business = business
@@ -122,6 +125,10 @@ final class OrderBuilder: ObservableObject {
 
     func setBringYourOwn(description: String, for racquet: PlayerRacquet) {
         stringSelections[racquet.id] = .bringYourOwn(description: description)
+    }
+
+    func markSubmitted() {
+        isSubmitted = true
     }
 
     func makeDraft() -> OrderDraft {

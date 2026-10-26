@@ -7,12 +7,15 @@ struct PlayerRootView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var orders: OrderStore
     @EnvironmentObject private var racquets: RacquetStore
+    /// Scoped to this player, so signing out empties it.
+    @StateObject private var cart = CartStore()
     @State private var selectedTab: Tab = .discover
     @State private var racquetSheet: RacquetSheet?
 
     enum Tab: Hashable {
         case discover
         case orders
+        case cart
         case profile
     }
 
@@ -35,10 +38,15 @@ struct PlayerRootView: View {
                 .tag(Tab.orders)
                 .badge(orders.awaitingPlayerApproval.count)
 
+            CartView(onFindStringer: { selectedTab = .discover })
+                .tabItem { Label("Cart", systemImage: "cart.fill") }
+                .tag(Tab.cart)
+
             PlayerProfileView(user: user)
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
                 .tag(Tab.profile)
         }
+        .environmentObject(cart)
         .onReceive(NotificationCenter.default.publisher(for: PushService.didOpenOrder)) { _ in
             selectedTab = .orders
         }

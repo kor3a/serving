@@ -579,4 +579,5 @@ struct RacquetSummaryRow: View {
     .environmentObject(OrderStore(backend: AppEnvironment.previewBackend()))
     .environmentObject(SessionStore(backend: AppEnvironment.previewBackend()))
     .environmentObject(racquets)
+    .environmentObject(CartStore())
 }

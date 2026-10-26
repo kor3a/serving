@@ -7,8 +7,12 @@ import SwiftUI
 struct CheckoutView: View {
 
     @ObservedObject var builder: OrderBuilder
+    /// Called with the new order instead of pushing its details from here.
+    /// The Cart tab uses it, since the checkout leaves the cart on submit.
+    var onSubmitted: ((Order) -> Void)? = nil
 
     @EnvironmentObject private var orders: OrderStore
+    @EnvironmentObject private var cart: CartStore
     @State private var isSubmitting = false
     @State private var submittedOrder: Order?
 
@@ -38,6 +42,7 @@ struct CheckoutView: View {
         .navigationDestination(item: $submittedOrder) { order in
             OrderDetailView(orderID: order.id)
         }
+        .onAppear { cart.hold(builder) }
     }
 
     // MARK: - Sections
@@ -178,10 +183,10 @@ struct CheckoutView: View {
             Button {
                 Task { await submit() }
             } label: {
-                Text("Submit Order")
+                Text(builder.isSubmitted ? "Order submitted" : "Submit Order")
             }
             .buttonStyle(PrimaryButtonStyle(isLoading: isSubmitting))
-            .disabled(!builder.canCheckout || isSubmitting)
+            .disabled(!builder.canCheckout || isSubmitting || builder.isSubmitted)
 
             Text("No charge until you accept the pick-up time")
                 .font(.caption2)
@@ -197,7 +202,13 @@ struct CheckoutView: View {
         isSubmitting = true
         defer { isSubmitting = false }
         if let order = await orders.createOrder(builder.makeDraft()) {
-            submittedOrder = order
+            builder.markSubmitted()
+            cart.clear(builder)
+            if let onSubmitted {
+                onSubmitted(order)
+            } else {
+                submittedOrder = order
+            }
         }
     }
 }
@@ -207,6 +218,7 @@ struct CheckoutView: View {
         CheckoutView(builder: previewBuilder())
     }
     .environmentObject(OrderStore(backend: AppEnvironment.previewBackend()))
+    .environmentObject(CartStore())
 }
 
 @MainActor
