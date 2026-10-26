@@ -178,9 +178,7 @@ struct CheckoutView: View {
             Button {
                 Task { await submit() }
             } label: {
-                Text("Send request to \(builder.business.name)")
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                Text("Submit Order")
             }
             .buttonStyle(PrimaryButtonStyle(isLoading: isSubmitting))
             .disabled(!builder.canCheckout || isSubmitting)
