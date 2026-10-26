@@ -17,6 +17,10 @@ enum Theme {
     static let court = Color(light: Color(red: 0.07, green: 0.26, blue: 0.21),
                              dark: Color(red: 0.05, green: 0.18, blue: 0.15))
 
+    /// Optic yellow, the colour of the ball in the logo. A brand colour, so it
+    /// does not change with the appearance.
+    static let optic = Color(red: 0.84, green: 0.93, blue: 0.18)
+
     static let clay = Color(light: Color(red: 0.79, green: 0.42, blue: 0.27),
                             dark: Color(red: 0.86, green: 0.52, blue: 0.36))
 

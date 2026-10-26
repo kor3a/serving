@@ -117,8 +117,8 @@ struct SectionHeader: View {
 
 // MARK: - Small pieces
 
-/// A racquet for the sport, drawn in the same language as `BrandLogo` — the
-/// racquet itself rather than SF Symbols' figure playing the sport.
+/// A racquet for the sport, drawn in code — the racquet itself rather than
+/// SF Symbols' figure playing the sport.
 ///
 /// A badminton racquet is the narrower head on the longer shaft.
 struct RacquetGlyph: View {
