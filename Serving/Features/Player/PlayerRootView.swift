@@ -11,6 +11,10 @@ struct PlayerRootView: View {
     @StateObject private var cart = CartStore()
     @State private var selectedTab: Tab = .discover
     @State private var racquetSheet: RacquetSheet?
+    /// Each tab is rebuilt when the court style changes, so every screen
+    /// picks up the new palette. Only the tabs' contents are rebuilt — the
+    /// cart and the selected tab live here and survive the switch.
+    @AppStorage(CourtStyle.storageKey) private var courtStyle = CourtStyle.defaultStyle
 
     enum Tab: Hashable {
         case discover
@@ -30,19 +34,23 @@ struct PlayerRootView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             DiscoverView()
+                .id(courtStyle)
                 .tabItem { Label("Discover", systemImage: "map.fill") }
                 .tag(Tab.discover)
 
             PlayerOrdersView()
+                .id(courtStyle)
                 .tabItem { Label("Orders", systemImage: "list.clipboard.fill") }
                 .tag(Tab.orders)
                 .badge(orders.awaitingPlayerApproval.count)
 
             CartView(onFindStringer: { selectedTab = .discover })
+                .id(courtStyle)
                 .tabItem { Label("Cart", systemImage: "cart.fill") }
                 .tag(Tab.cart)
 
             PlayerProfileView(user: user)
+                .id(courtStyle)
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
                 .tag(Tab.profile)
         }

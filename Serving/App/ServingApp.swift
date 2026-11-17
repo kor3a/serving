@@ -11,6 +11,8 @@ struct ServingApp: App {
     @StateObject private var businessStore = BusinessStore(backend: AppEnvironment.shared.backend)
     @StateObject private var racquets = RacquetStore(backend: AppEnvironment.shared.backend)
     @StateObject private var location = LocationService()
+    /// Read here so the app-wide tint follows the court style.
+    @AppStorage(CourtStyle.storageKey) private var courtStyle = CourtStyle.defaultStyle
 
     var body: some Scene {
         WindowGroup {
@@ -21,7 +23,7 @@ struct ServingApp: App {
                 .environmentObject(businessStore)
                 .environmentObject(racquets)
                 .environmentObject(location)
-                .tint(Theme.accent)
+                .tint(courtStyle.palette.accent)
         }
     }
 }
