@@ -80,7 +80,7 @@ struct LandingView: View {
     private var background: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(red: 0.08, green: 0.29, blue: 0.23), Color(red: 0.02, green: 0.11, blue: 0.09)],
+                colors: [Theme.courtTop, Theme.courtBottom],
                 startPoint: .topLeading,
                 endPoint: .bottom
             )
@@ -182,7 +182,7 @@ private struct OpticButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(Color(red: 0.04, green: 0.16, blue: 0.13))
+            .foregroundStyle(Theme.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(

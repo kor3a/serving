@@ -11,6 +11,7 @@ struct PlayerProfileView: View {
     @State private var showSignOutDialog = false
     @State private var isAddingRacquet = false
     @State private var editingRacquet: PlayerRacquet?
+    @AppStorage(CourtStyle.storageKey) private var courtStyle = CourtStyle.defaultStyle
 
     private var completedCount: Int {
         orders.orders.filter { $0.status == .complete || $0.status == .pickedUp }.count
@@ -39,6 +40,7 @@ struct PlayerProfileView: View {
                         )
                     }
 
+                    courtStyleCard
                     racquetsCard
                     accountCard
                     notificationsCard
@@ -86,6 +88,27 @@ struct PlayerProfileView: View {
             Text(user.email)
                 .font(.footnote)
                 .foregroundStyle(Theme.secondaryText)
+        }
+    }
+
+    /// Re-skins the app as a hard, grass or clay court. Sits near the top so
+    /// it is still in view after the switch rebuilds this screen.
+    private var courtStyleCard: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SectionHeader(title: "App style")
+            HStack(spacing: Theme.Spacing.sm + 2) {
+                ForEach(CourtStyle.allCases) { style in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) { courtStyle = style }
+                    } label: {
+                        CourtStyleTile(style: style, isSelected: style == courtStyle)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(style.name) court")
+                    .accessibilityValue(style.tagline)
+                    .accessibilityAddTraits(style == courtStyle ? .isSelected : [])
+                }
+            }
         }
     }
 
@@ -212,6 +235,96 @@ struct PlayerProfileView: View {
         let parts = user.displayName.split(separator: " ").prefix(2)
         let letters = parts.compactMap { $0.first }.map(String.init)
         return letters.isEmpty ? "T" : letters.joined().uppercased()
+    }
+}
+
+/// A court seen from above in the style's own colours, with its name.
+private struct CourtStyleTile: View {
+    let style: CourtStyle
+    let isSelected: Bool
+
+    var body: some View {
+        let palette = style.palette
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.medium - 2, style: .continuous)
+
+        VStack(spacing: 6) {
+            shape
+                .fill(
+                    LinearGradient(
+                        colors: [palette.courtTop, palette.courtBottom],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    MiniCourtLines()
+                        .stroke(.white.opacity(0.8), lineWidth: 1.2)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                )
+                // The ball, mid-rally in the near service box.
+                .overlay(alignment: .center) {
+                    Circle()
+                        .fill(Theme.optic)
+                        .frame(width: 9, height: 9)
+                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                        .offset(x: 9, y: 16)
+                }
+                .overlay(alignment: .topTrailing) {
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(palette.ink, Theme.optic)
+                            .padding(5)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .frame(height: 92)
+                .padding(3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.medium + 1, style: .continuous)
+                        .stroke(isSelected ? palette.accent : Theme.separator, lineWidth: isSelected ? 2.5 : 1)
+                )
+
+            Text(style.name)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Theme.primaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+}
+
+/// A full court from above, end to end: doubles and singles sidelines, the
+/// net, both service lines and the centre service line.
+private struct MiniCourtLines: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRect(rect)
+
+        let alley = rect.width * 0.12
+        let serviceDepth = rect.height * 0.27
+        let singlesLeft = rect.minX + alley
+        let singlesRight = rect.maxX - alley
+
+        path.move(to: CGPoint(x: singlesLeft, y: rect.minY))
+        path.addLine(to: CGPoint(x: singlesLeft, y: rect.maxY))
+        path.move(to: CGPoint(x: singlesRight, y: rect.minY))
+        path.addLine(to: CGPoint(x: singlesRight, y: rect.maxY))
+
+        // Net
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+
+        // Service lines and the centre line joining them.
+        for y in [rect.midY - serviceDepth, rect.midY + serviceDepth] {
+            path.move(to: CGPoint(x: singlesLeft, y: y))
+            path.addLine(to: CGPoint(x: singlesRight, y: y))
+        }
+        path.move(to: CGPoint(x: rect.midX, y: rect.midY - serviceDepth))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.midY + serviceDepth))
+        return path
     }
 }
 
